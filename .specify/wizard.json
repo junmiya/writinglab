@@ -1,0 +1,9 @@
+{
+  "ai": "claude",
+  "script": "sh",
+  "here": true,
+  "noGit": true,
+  "ignoreAgentTools": false,
+  "debug": false,
+  "lastProjectName": "新規事業検討サービス"
+}
