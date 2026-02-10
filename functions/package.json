@@ -1,0 +1,25 @@
+{
+  "name": "@scenario-writing-lab/functions",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run tests/unit --passWithNoTests",
+    "test:integration": "vitest run tests/integration --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.42.0",
+    "@typescript-eslint/parser": "^8.42.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

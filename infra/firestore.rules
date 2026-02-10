@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // User-scoped documents; tighten with per-collection schemas in Phase 2.
+    match /users/{uid}/{document=**} {
+      allow read, write: if isOwner(uid);
+    }
+  }
+}

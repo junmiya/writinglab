@@ -1,0 +1,44 @@
+# Quickstart: Scenario Writing Lab MVP
+
+## Prerequisites
+
+- Node.js 20+
+- npm 10+
+- Firebase project with Auth, Firestore, Functions enabled
+
+## Setup
+
+1. Install dependencies for frontend and functions.
+2. Copy example env files and fill required values.
+3. Configure Firebase project and apply Firestore security rules.
+4. Start local development servers.
+
+```bash
+npm install
+cp .env.example .env
+cp frontend/.env.example frontend/.env
+cp functions/.env.example functions/.env
+npm run ci:check
+```
+
+## Validation Flow
+
+1. Login and create a new script document.
+2. Write in vertical editor and use format helper controls.
+3. Save and reload the document to confirm persistence.
+4. Add and edit character entries.
+5. Generate dual advice with two different provider selections.
+6. Request partial advice on selected text.
+7. Review structure panel and before/after diff.
+8. Export document and verify format integrity.
+
+## Quality Gates
+
+- `npm run lint`
+- `npm run test`
+- `npm run typecheck`
+
+## Validation Record
+
+- `2026-02-10`: Quickstart execution is prepared but full run is pending dependency install and
+  Firebase project credentials in local environment.
