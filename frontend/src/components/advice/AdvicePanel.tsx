@@ -1,10 +1,12 @@
 import type { ReactElement } from 'react';
 
+import type { AdviceModelDescriptor } from '../../services/adviceService';
 import type { AdviceProvider } from '../../stores/adviceStore';
 
 interface AdvicePanelProps {
   title: string;
   provider: AdviceProvider;
+  models: AdviceModelDescriptor[];
   preset: string;
   structureFeedback: string;
   emotionalFeedback: string;
@@ -12,11 +14,10 @@ interface AdvicePanelProps {
   onPresetChange: (preset: string) => void;
 }
 
-const providers: AdviceProvider[] = ['gemini', 'openai', 'anthropic'];
-
 export function AdvicePanel({
   title,
   provider,
+  models,
   preset,
   structureFeedback,
   emotionalFeedback,
@@ -36,9 +37,10 @@ export function AdvicePanel({
             value={provider}
             onChange={(event) => onProviderChange(event.currentTarget.value as AdviceProvider)}
           >
-            {providers.map((item) => (
-              <option key={item} value={item}>
-                {item}
+            {models.map((item) => (
+              <option key={item.provider} value={item.provider} disabled={!item.enabled}>
+                {item.label}
+                {item.enabled ? '' : ' (disabled)'}
               </option>
             ))}
           </select>

@@ -1,5 +1,11 @@
 import type { AdviceProvider } from '../stores/adviceStore';
-import { isFunctionsApiConfigured, postFunctionsJson } from './functionsApi';
+import { isFunctionsApiConfigured, postFunctionsJson, requestFunctionsJson } from './functionsApi';
+
+export interface AdviceModelDescriptor {
+  provider: AdviceProvider;
+  label: string;
+  enabled: boolean;
+}
 
 export interface AdviceFeedback {
   provider: AdviceProvider;
@@ -22,6 +28,12 @@ export interface GenerateAdviceInput {
   panelAPreset: string;
   panelBPreset: string;
 }
+
+const fallbackModels: AdviceModelDescriptor[] = [
+  { provider: 'gemini', label: 'Gemini', enabled: true },
+  { provider: 'openai', label: 'OpenAI', enabled: true },
+  { provider: 'anthropic', label: 'Anthropic', enabled: true },
+];
 
 function buildMockFeedback(
   provider: AdviceProvider,
@@ -72,4 +84,12 @@ export async function generateAdvice(input: GenerateAdviceInput): Promise<Advice
     panelAProvider: input.panelAProvider,
     panelBProvider: input.panelBProvider,
   });
+}
+
+export async function listAdviceModels(): Promise<AdviceModelDescriptor[]> {
+  if (!isFunctionsApiConfigured()) {
+    return fallbackModels;
+  }
+
+  return requestFunctionsJson<AdviceModelDescriptor[]>('GET', '/api/advice/models');
 }

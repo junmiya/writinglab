@@ -14,7 +14,11 @@ import {
   applyToolbarAction,
   type ToolbarAction,
 } from '../components/toolbar/ScriptToolbar';
-import { generateAdvice } from '../services/adviceService';
+import {
+  generateAdvice,
+  listAdviceModels,
+  type AdviceModelDescriptor,
+} from '../services/adviceService';
 import {
   createDocument,
   listDocuments,
@@ -24,7 +28,12 @@ import {
 } from '../services/documentService';
 import type { ScriptDocument } from '../services/documentRepository';
 import { requestExport } from '../services/exportService';
-import { createAdviceState, selectPanelModel, setPanelPreset } from '../stores/adviceStore';
+import {
+  createAdviceState,
+  selectPanelModel,
+  setPanelPreset,
+  type AdviceProvider,
+} from '../stores/adviceStore';
 import {
   createInitialEditorState,
   recalculateGuideMetrics,
@@ -46,6 +55,11 @@ const structureSegments: StructureSegment[] = [
 
 const defaultSegmentId = structureSegments[0]?.id ?? 'intro';
 const localDocumentId = 'local-draft';
+const defaultAdviceModels: AdviceModelDescriptor[] = [
+  { provider: 'gemini', label: 'Gemini', enabled: true },
+  { provider: 'openai', label: 'OpenAI', enabled: true },
+  { provider: 'anthropic', label: 'Anthropic', enabled: true },
+];
 
 function toEditorState(document: ScriptDocument) {
   return {
@@ -96,6 +110,8 @@ export function EditorPage(): ReactElement {
     structureFeedback: 'アドバイス未生成',
     emotionalFeedback: 'アドバイス未生成',
   });
+  const [adviceModels, setAdviceModels] = useState<AdviceModelDescriptor[]>(defaultAdviceModels);
+  const [adviceMessage, setAdviceMessage] = useState('');
   const [exportMessage, setExportMessage] = useState('');
   const [documentId, setDocumentId] = useState('');
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
@@ -110,6 +126,23 @@ export function EditorPage(): ReactElement {
     setSelectedDocumentId(document.id);
     setState(toEditorState(document));
     setCharacters(toCharacterRows(document));
+  };
+
+  const resolveProvider = (
+    current: AdviceProvider,
+    models: AdviceModelDescriptor[],
+    fallback: AdviceProvider,
+  ): AdviceProvider => {
+    const enabled = models.filter((item) => item.enabled).map((item) => item.provider);
+    if (enabled.length === 0) {
+      return fallback;
+    }
+
+    if (enabled.includes(current)) {
+      return current;
+    }
+
+    return enabled[0] ?? fallback;
   };
 
   const refreshDocuments = async (): Promise<void> => {
@@ -134,6 +167,29 @@ export function EditorPage(): ReactElement {
     })();
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const models = await listAdviceModels();
+        setAdviceModels(models);
+        setAdviceState((current) => ({
+          ...current,
+          panelA: {
+            ...current.panelA,
+            provider: resolveProvider(current.panelA.provider, models, 'gemini'),
+          },
+          panelB: {
+            ...current.panelB,
+            provider: resolveProvider(current.panelB.provider, models, 'openai'),
+          },
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setAdviceMessage(`モデル一覧取得失敗: ${message}`);
+      }
+    })();
+  }, []);
+
   const onToolbarApply = (action: ToolbarAction): void => {
     setState((current) => updateContent(current, applyToolbarAction(current.content, action)));
   };
@@ -143,6 +199,16 @@ export function EditorPage(): ReactElement {
   }, [state]);
 
   const regenerateAdvice = async (selectedText?: string): Promise<void> => {
+    const providerEnabled = (provider: AdviceProvider): boolean =>
+      adviceModels.some((item) => item.provider === provider && item.enabled);
+    if (
+      !providerEnabled(adviceState.panelA.provider) ||
+      !providerEnabled(adviceState.panelB.provider)
+    ) {
+      setAdviceMessage('選択中のモデルが利用不可です。モデル設定を見直してください。');
+      return;
+    }
+
     const response = await generateAdvice({
       documentId: activeDocumentId,
       synopsis: state.synopsis,
@@ -162,6 +228,7 @@ export function EditorPage(): ReactElement {
       structureFeedback: response.panelB.structureFeedback,
       emotionalFeedback: response.panelB.emotionalFeedback,
     });
+    setAdviceMessage('');
   };
 
   const onRequestPartialAdvice = async (selectedText: string): Promise<void> => {
@@ -352,11 +419,13 @@ export function EditorPage(): ReactElement {
       <button type="button" onClick={() => void regenerateAdvice()}>
         全体アドバイス更新
       </button>
+      {adviceMessage ? <p>{adviceMessage}</p> : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <AdvicePanel
           title="Advice A"
           provider={adviceState.panelA.provider}
+          models={adviceModels}
           preset={adviceState.panelA.preset}
           structureFeedback={panelAAdvice.structureFeedback}
           emotionalFeedback={panelAAdvice.emotionalFeedback}
@@ -371,6 +440,7 @@ export function EditorPage(): ReactElement {
         <AdvicePanel
           title="Advice B"
           provider={adviceState.panelB.provider}
+          models={adviceModels}
           preset={adviceState.panelB.preset}
           structureFeedback={panelBAdvice.structureFeedback}
           emotionalFeedback={panelBAdvice.emotionalFeedback}

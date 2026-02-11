@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { generateAdvice } from '../../src/services/adviceService';
+import { generateAdvice, listAdviceModels } from '../../src/services/adviceService';
 
 describe('adviceService', () => {
   it('returns local mock advice when functions API is not configured', async () => {
@@ -18,5 +18,17 @@ describe('adviceService', () => {
     expect(result.panelB.provider).toBe('openai');
     expect(result.panelA.structureFeedback).toContain('gemini/standard/full');
     expect(result.panelB.structureFeedback).toContain('openai/standard/full');
+  });
+
+  it('returns fallback model descriptors when functions API is not configured', async () => {
+    const models = await listAdviceModels();
+
+    expect(models).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provider: 'gemini', enabled: true }),
+        expect.objectContaining({ provider: 'openai', enabled: true }),
+        expect.objectContaining({ provider: 'anthropic', enabled: true }),
+      ]),
+    );
   });
 });
