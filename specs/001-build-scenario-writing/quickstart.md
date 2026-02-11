@@ -44,6 +44,7 @@ Deploy (after `firebase login` and project selection):
 ```bash
 cp .firebaserc.example .firebaserc
 firebase use --add
+npm run deploy:precheck
 npm run deploy:firebase
 ```
 

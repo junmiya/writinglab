@@ -12,6 +12,7 @@
     "build:frontend": "npm run --workspace @scenario-writing-lab/frontend build",
     "build:functions": "npm run --workspace @scenario-writing-lab/functions build",
     "build": "npm run build:frontend && npm run build:functions",
+    "deploy:precheck": "bash scripts/deploy/precheck.sh",
     "deploy:firebase": "firebase deploy --config firebase.json",
     "deploy:functions": "firebase deploy --config firebase.json --only functions",
     "deploy:hosting": "firebase deploy --config firebase.json --only hosting",

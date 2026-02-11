@@ -21,4 +21,5 @@ All notable changes to this project are documented in this file.
 - Added switchable functions document store backend (`memory` / `firestore`)
 - Added GitHub Actions CI workflow (`.github/workflows/ci.yml`)
 - Added Firebase deploy configuration with functions build/output entrypoint
+- Added `deploy:precheck` script to validate Firebase auth/project setup before deploy
 <!-- speckit:end:unreleased -->
