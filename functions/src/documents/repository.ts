@@ -86,7 +86,7 @@ function readCollectionName(): string {
 }
 
 function readProjectId(): string | undefined {
-  const configured = process.env.FIREBASE_PROJECT_ID;
+  const configured = process.env.DOCUMENTS_FIREBASE_PROJECT_ID;
   return configured && configured.trim().length > 0 ? configured.trim() : undefined;
 }
 

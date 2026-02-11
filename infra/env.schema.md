@@ -18,7 +18,7 @@ This file defines required environment variables for local development and CI.
 
 ## Functions (`functions/.env`)
 
-- `FIREBASE_PROJECT_ID`: Firebase project id for function runtime
+- `DOCUMENTS_FIREBASE_PROJECT_ID`: Firebase project id for function runtime
 - `FUNCTIONS_REGION`: Cloud Functions region (default `us-central1`)
 - `DOCUMENT_STORE_BACKEND`: document repository backend (`memory` or `firestore`)
 - `FIRESTORE_DOCUMENTS_COLLECTION`: optional collection name override (default `documents`)
