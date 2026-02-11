@@ -61,11 +61,13 @@ else
 fi
 
 if command -v firebase >/dev/null 2>&1; then
-  firebase projects:list >/tmp/firebase_projects_list.txt 2>&1 || true
+  FIREBASE_SKIP_UPDATE_CHECK=1 firebase projects:list >/tmp/firebase_projects_list.txt 2>&1 || true
   PROJECTS_OUTPUT="$(cat /tmp/firebase_projects_list.txt)"
 
   if printf '%s' "$PROJECTS_OUTPUT" | grep -q 'Authentication Error'; then
     fail "firebase auth is invalid (run: firebase login --reauth)"
+  elif printf '%s' "$PROJECTS_OUTPUT" | grep -q 'firebase-tools update check failed'; then
+    warn "firebase update check failed (ignored for precheck)"
   elif printf '%s' "$PROJECTS_OUTPUT" | grep -q 'Failed to list Firebase projects'; then
     fail "firebase projects could not be listed (check network/auth)"
   elif printf '%s' "$PROJECTS_OUTPUT" | grep -q 'Preparing the list of your Firebase projects'; then
@@ -74,7 +76,7 @@ if command -v firebase >/dev/null 2>&1; then
     warn "could not fully confirm firebase auth status"
   fi
 
-  firebase use >/tmp/firebase_use.txt 2>&1 || true
+  FIREBASE_SKIP_UPDATE_CHECK=1 firebase use >/tmp/firebase_use.txt 2>&1 || true
   USE_OUTPUT="$(cat /tmp/firebase_use.txt)"
 
   if printf '%s' "$USE_OUTPUT" | grep -q 'No active project'; then
@@ -91,4 +93,3 @@ printf '\nSummary: %s pass, %s warn, %s fail\n' "$PASS_COUNT" "$WARN_COUNT" "$FA
 if [ "$FAIL_COUNT" -gt 0 ]; then
   exit 1
 fi
-
