@@ -42,6 +42,8 @@ npm run ci:check
 Deploy (after `firebase login` and project selection):
 
 ```bash
+cp .firebaserc.example .firebaserc
+firebase use --add
 npm run deploy:firebase
 ```
 
