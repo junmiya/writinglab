@@ -18,6 +18,21 @@ npm install
 cp .env.example .env
 cp frontend/.env.example frontend/.env
 cp functions/.env.example functions/.env
+```
+
+Start development servers in separate terminals:
+
+```bash
+npm run dev:functions
+```
+
+```bash
+npm run dev:frontend
+```
+
+Run quality checks in another shell:
+
+```bash
 npm run ci:check
 ```
 
@@ -40,5 +55,5 @@ npm run ci:check
 
 ## Validation Record
 
-- `2026-02-10`: Quickstart execution is prepared but full run is pending dependency install and
-  Firebase project credentials in local environment.
+- `2026-02-11`: Dependency installation and local quality gates are verified. End-to-end Firebase
+  runtime validation remains pending local project credentials.

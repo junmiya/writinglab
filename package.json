@@ -7,6 +7,9 @@
     "functions"
   ],
   "scripts": {
+    "dev:frontend": "npm run --workspace @scenario-writing-lab/frontend dev",
+    "dev:functions": "npm run --workspace @scenario-writing-lab/functions dev",
+    "build:frontend": "npm run --workspace @scenario-writing-lab/frontend build",
     "lint": "npm run --workspaces --if-present lint",
     "format": "npm run --workspaces --if-present format",
     "format:check": "npm run --workspaces --if-present format:check",

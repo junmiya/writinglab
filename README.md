@@ -32,6 +32,13 @@ Required runtime prerequisites:
 ## Usage
 
 ```bash
+npm run dev:functions
+npm run dev:frontend
+```
+
+Run quality checks in a separate shell:
+
+```bash
 npm run ci:check
 ```
 
