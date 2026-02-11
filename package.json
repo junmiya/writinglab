@@ -1,0 +1,33 @@
+{
+  "name": "scenario-writing-lab",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "functions"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run --workspace @scenario-writing-lab/frontend dev",
+    "dev:functions": "npm run --workspace @scenario-writing-lab/functions dev",
+    "build:frontend": "npm run --workspace @scenario-writing-lab/frontend build",
+    "build:functions": "npm run --workspace @scenario-writing-lab/functions build",
+    "build": "npm run build:frontend && npm run build:functions",
+    "deploy:precheck": "bash scripts/deploy/precheck.sh",
+    "deploy:firebase": "firebase deploy --config firebase.json",
+    "deploy:functions": "firebase deploy --config firebase.json --only functions",
+    "deploy:hosting": "firebase deploy --config firebase.json --only hosting",
+    "lint": "npm run --workspaces --if-present lint",
+    "format": "npm run --workspaces --if-present format",
+    "format:check": "npm run --workspaces --if-present format:check",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "test": "npm run --workspaces --if-present test",
+    "test:unit": "npm run --workspaces --if-present test:unit",
+    "test:integration": "npm run --workspaces --if-present test:integration",
+    "ci:lint": "npm run lint && npm run format:check",
+    "ci:test": "npm run test:unit && npm run test:integration",
+    "ci:check": "npm run ci:lint && npm run typecheck && npm run ci:test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
