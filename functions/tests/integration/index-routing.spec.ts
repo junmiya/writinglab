@@ -56,6 +56,23 @@ describe('index routing', () => {
     );
   });
 
+  it('routes advice model listing', async () => {
+    const response = await routeApiRequest({
+      method: 'GET',
+      path: '/api/advice/models',
+      headers: { 'x-user-id': 'user-1' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provider: 'gemini' }),
+        expect.objectContaining({ provider: 'openai' }),
+        expect.objectContaining({ provider: 'anthropic' }),
+      ]),
+    );
+  });
+
   it('routes document create/list/get/update with ownership and version checks', async () => {
     const createResponse = await routeApiRequest({
       method: 'POST',

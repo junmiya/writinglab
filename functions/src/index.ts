@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import { handleExportDocument } from './advice/exportDocument';
 import { handleGenerateAdvice } from './advice/generateAdvice';
+import { handleListAdviceModels } from './advice/listModels';
 import { createCorrelationId } from './common/logging';
 import {
   handleCreateDocument,
@@ -218,6 +219,11 @@ export async function routeApiRequest(req: ApiRequest): Promise<ApiResponse> {
         correlationId,
       });
     }
+  }
+
+  if (method === 'GET' && path === '/api/advice/models') {
+    const result = await handleListAdviceModels();
+    return jsonResponse(result.statusCode, result.body);
   }
 
   const exportMatch = path.match(/^\/api\/documents\/([^/]+)\/export$/);
