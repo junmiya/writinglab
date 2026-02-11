@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AdvicePanel } from '../components/advice/AdvicePanel';
 import { DiffView } from '../components/advice/DiffView';
 import { PartialAdvice } from '../components/advice/PartialAdvice';
@@ -15,9 +15,22 @@ import {
   type ToolbarAction,
 } from '../components/toolbar/ScriptToolbar';
 import { generateAdvice } from '../services/adviceService';
+import {
+  createDocument,
+  listDocuments,
+  loadDocument,
+  saveDocument,
+  type DocumentSummary,
+} from '../services/documentService';
+import type { ScriptDocument } from '../services/documentRepository';
 import { requestExport } from '../services/exportService';
 import { createAdviceState, selectPanelModel, setPanelPreset } from '../stores/adviceStore';
-import { createInitialEditorState, updateContent, updateSettings } from '../stores/editorStore';
+import {
+  createInitialEditorState,
+  recalculateGuideMetrics,
+  updateContent,
+  updateSettings,
+} from '../stores/editorStore';
 
 interface AdviceResult {
   structureFeedback: string;
@@ -34,6 +47,41 @@ const structureSegments: StructureSegment[] = [
 const defaultSegmentId = structureSegments[0]?.id ?? 'intro';
 const localDocumentId = 'local-draft';
 
+function toEditorState(document: ScriptDocument) {
+  return {
+    title: document.title,
+    authorName: document.authorName,
+    synopsis: document.synopsis,
+    content: document.content,
+    settings: document.settings,
+    metrics: recalculateGuideMetrics({
+      content: document.content,
+      settings: document.settings,
+    }),
+  };
+}
+
+function toCharacterRows(document: ScriptDocument): CharacterRow[] {
+  return document.characters.map((item) => {
+    const row: CharacterRow = {
+      id: item.id,
+      name: item.name,
+    };
+
+    if (item.age !== undefined) {
+      row.age = item.age;
+    }
+    if (item.traits !== undefined) {
+      row.traits = item.traits;
+    }
+    if (item.background !== undefined) {
+      row.background = item.background;
+    }
+
+    return row;
+  });
+}
+
 export function EditorPage(): ReactElement {
   const [state, setState] = useState(createInitialEditorState);
   const [adviceState, setAdviceState] = useState(createAdviceState);
@@ -49,6 +97,42 @@ export function EditorPage(): ReactElement {
     emotionalFeedback: 'アドバイス未生成',
   });
   const [exportMessage, setExportMessage] = useState('');
+  const [documentId, setDocumentId] = useState('');
+  const [selectedDocumentId, setSelectedDocumentId] = useState('');
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [documentMessage, setDocumentMessage] = useState('');
+  const [documentPending, setDocumentPending] = useState(false);
+
+  const activeDocumentId = documentId || localDocumentId;
+
+  const applyLoadedDocument = (document: ScriptDocument): void => {
+    setDocumentId(document.id);
+    setSelectedDocumentId(document.id);
+    setState(toEditorState(document));
+    setCharacters(toCharacterRows(document));
+  };
+
+  const refreshDocuments = async (): Promise<void> => {
+    const list = await listDocuments();
+    setDocuments(list);
+    if (list.length > 0) {
+      const firstId = list[0]?.id;
+      if (firstId) {
+        setSelectedDocumentId((current) => current || firstId);
+      }
+    }
+  };
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await refreshDocuments();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setDocumentMessage(`ドキュメント一覧取得失敗: ${message}`);
+      }
+    })();
+  }, []);
 
   const onToolbarApply = (action: ToolbarAction): void => {
     setState((current) => updateContent(current, applyToolbarAction(current.content, action)));
@@ -60,7 +144,7 @@ export function EditorPage(): ReactElement {
 
   const regenerateAdvice = async (selectedText?: string): Promise<void> => {
     const response = await generateAdvice({
-      documentId: localDocumentId,
+      documentId: activeDocumentId,
       synopsis: state.synopsis,
       content: state.content,
       ...(selectedText !== undefined ? { selectedText } : {}),
@@ -89,10 +173,89 @@ export function EditorPage(): ReactElement {
     setState((current) => updateContent(current, `${current.content}\n# 修正案を反映\n`));
   };
 
+  const onCreateDocument = async (): Promise<void> => {
+    setDocumentPending(true);
+    try {
+      const created = await createDocument({
+        title: state.title.trim() || 'untitled-script',
+        authorName: state.authorName.trim() || 'unknown-author',
+        settings: state.settings,
+      });
+      const saved = await saveDocument(created.id, {
+        synopsis: state.synopsis,
+        content: state.content,
+        characters,
+      });
+      applyLoadedDocument(saved);
+      await refreshDocuments();
+      setDocumentMessage(`新規作成: ${saved.id}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setDocumentMessage(`新規作成失敗: ${message}`);
+    } finally {
+      setDocumentPending(false);
+    }
+  };
+
+  const onSaveDocument = async (): Promise<void> => {
+    setDocumentPending(true);
+    try {
+      let targetId = documentId;
+      if (!targetId) {
+        const created = await createDocument({
+          title: state.title.trim() || 'untitled-script',
+          authorName: state.authorName.trim() || 'unknown-author',
+          settings: state.settings,
+        });
+        targetId = created.id;
+      }
+
+      const saved = await saveDocument(targetId, {
+        title: state.title,
+        authorName: state.authorName,
+        synopsis: state.synopsis,
+        content: state.content,
+        settings: state.settings,
+        characters,
+      });
+      applyLoadedDocument(saved);
+      await refreshDocuments();
+      setDocumentMessage(`保存完了: ${saved.id} (v${saved.version})`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setDocumentMessage(`保存失敗: ${message}`);
+    } finally {
+      setDocumentPending(false);
+    }
+  };
+
+  const onLoadDocument = async (): Promise<void> => {
+    if (!selectedDocumentId) {
+      return;
+    }
+
+    setDocumentPending(true);
+    try {
+      const loaded = await loadDocument(selectedDocumentId);
+      if (!loaded) {
+        setDocumentMessage('ドキュメントが見つかりません');
+        return;
+      }
+
+      applyLoadedDocument(loaded);
+      setDocumentMessage(`読み込み完了: ${loaded.id} (v${loaded.version})`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setDocumentMessage(`読み込み失敗: ${message}`);
+    } finally {
+      setDocumentPending(false);
+    }
+  };
+
   const onExport = async (): Promise<void> => {
     try {
       const payload = await requestExport({
-        documentId: localDocumentId,
+        documentId: activeDocumentId,
         title: state.title || 'untitled-script',
         authorName: state.authorName || 'unknown-author',
         content: state.content,
@@ -106,6 +269,67 @@ export function EditorPage(): ReactElement {
   return (
     <main style={{ display: 'grid', gap: 16 }}>
       <h1>Scenario Writing Lab</h1>
+
+      <section aria-label="Document controls" style={{ border: '1px solid #d0d5dd', padding: 12 }}>
+        <h3>ドキュメント管理</h3>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <label>
+            タイトル
+            <input
+              value={state.title}
+              onChange={(event) =>
+                setState((current) => ({ ...current, title: event.currentTarget.value }))
+              }
+              placeholder="脚本タイトル"
+            />
+          </label>
+          <label>
+            著者
+            <input
+              value={state.authorName}
+              onChange={(event) =>
+                setState((current) => ({ ...current, authorName: event.currentTarget.value }))
+              }
+              placeholder="著者名"
+            />
+          </label>
+          <label>
+            あらすじ
+            <textarea
+              value={state.synopsis}
+              onChange={(event) =>
+                setState((current) => ({ ...current, synopsis: event.currentTarget.value }))
+              }
+              placeholder="あらすじ"
+            />
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button type="button" onClick={() => void onCreateDocument()} disabled={documentPending}>
+            新規作成
+          </button>
+          <button type="button" onClick={() => void onSaveDocument()} disabled={documentPending}>
+            保存
+          </button>
+          <select
+            value={selectedDocumentId}
+            onChange={(event) => setSelectedDocumentId(event.currentTarget.value)}
+            aria-label="Saved documents"
+          >
+            <option value="">保存済みを選択</option>
+            {documents.map((document) => (
+              <option key={document.id} value={document.id}>
+                {document.title || '(untitled)'} / {document.id}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={() => void onLoadDocument()} disabled={documentPending}>
+            読み込み
+          </button>
+        </div>
+        <p>現在のドキュメントID: {documentId || '(未保存)'}</p>
+        {documentMessage ? <p>{documentMessage}</p> : null}
+      </section>
 
       <ScriptToolbar onApply={onToolbarApply} />
 

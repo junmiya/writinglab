@@ -1,4 +1,4 @@
-import { requireSession } from './authService';
+import { readSession } from './authService';
 import {
   InMemoryDocumentRepository,
   type ScriptDocument,
@@ -8,13 +8,31 @@ import { isFunctionsApiConfigured, requestFunctionsJson } from './functionsApi';
 
 const repository = new InMemoryDocumentRepository();
 
-export async function listDocuments(): Promise<ScriptDocument[]> {
+export interface DocumentSummary {
+  id: string;
+  title: string;
+  authorName: string;
+  updatedAt: string;
+  version: number;
+}
+
+function resolveLocalOwnerId(): string {
+  return readSession()?.user.uid ?? 'local-dev-user';
+}
+
+export async function listDocuments(): Promise<DocumentSummary[]> {
   if (isFunctionsApiConfigured()) {
-    return requestFunctionsJson<ScriptDocument[]>('GET', '/api/documents');
+    return requestFunctionsJson<DocumentSummary[]>('GET', '/api/documents');
   }
 
-  const session = await requireSession();
-  return repository.list(session.user.uid);
+  const documents = await repository.list(resolveLocalOwnerId());
+  return documents.map((document) => ({
+    id: document.id,
+    title: document.title,
+    authorName: document.authorName,
+    updatedAt: document.updatedAt,
+    version: document.version,
+  }));
 }
 
 export async function createDocument(input: {
@@ -26,8 +44,7 @@ export async function createDocument(input: {
     return requestFunctionsJson<ScriptDocument>('POST', '/api/documents', input);
   }
 
-  const session = await requireSession();
-  return repository.create(session.user.uid, input);
+  return repository.create(resolveLocalOwnerId(), input);
 }
 
 export async function loadDocument(id: string): Promise<ScriptDocument | null> {
@@ -47,8 +64,7 @@ export async function loadDocument(id: string): Promise<ScriptDocument | null> {
     }
   }
 
-  const session = await requireSession();
-  return repository.get(session.user.uid, id);
+  return repository.get(resolveLocalOwnerId(), id);
 }
 
 export async function saveDocument(
@@ -63,6 +79,5 @@ export async function saveDocument(
     );
   }
 
-  const session = await requireSession();
-  return repository.update(session.user.uid, id, patch);
+  return repository.update(resolveLocalOwnerId(), id, patch);
 }
