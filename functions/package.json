@@ -5,7 +5,7 @@
   "type": "commonjs",
   "main": "lib/firebase.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
