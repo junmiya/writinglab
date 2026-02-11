@@ -44,6 +44,12 @@ Run quality checks in a separate shell:
 npm run ci:check
 ```
 
+Deploy to Firebase (requires `firebase login` and project configuration):
+
+```bash
+npm run deploy:firebase
+```
+
 For feature-specific validation flow, see:
 - `specs/001-build-scenario-writing/quickstart.md`
 - `specs/001-build-scenario-writing/quickstart-validation.md`

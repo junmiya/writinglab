@@ -20,4 +20,5 @@ All notable changes to this project are documented in this file.
 - Added frontend dynamic advice model loading from API with fallback behavior
 - Added switchable functions document store backend (`memory` / `firestore`)
 - Added GitHub Actions CI workflow (`.github/workflows/ci.yml`)
+- Added Firebase deploy configuration with functions build/output entrypoint
 <!-- speckit:end:unreleased -->

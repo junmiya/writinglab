@@ -12,6 +12,7 @@ Thumbs.db
 # Build output
 dist/
 build/
+functions/lib/
 
 # IDE
 .vscode/

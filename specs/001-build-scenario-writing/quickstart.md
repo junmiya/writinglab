@@ -39,6 +39,12 @@ Run quality checks in another shell:
 npm run ci:check
 ```
 
+Deploy (after `firebase login` and project selection):
+
+```bash
+npm run deploy:firebase
+```
+
 ## Validation Flow
 
 1. Login and create a new script document.

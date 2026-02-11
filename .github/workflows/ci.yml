@@ -29,3 +29,6 @@ jobs:
 
       - name: Run CI Checks
         run: npm run ci:check
+
+      - name: Verify Deploy Build
+        run: npm run build
