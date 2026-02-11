@@ -56,6 +56,66 @@ describe('index routing', () => {
     );
   });
 
+  it('routes document create/list/get/update with ownership and version checks', async () => {
+    const createResponse = await routeApiRequest({
+      method: 'POST',
+      path: '/api/documents',
+      headers: { 'x-user-id': 'owner-1', 'x-correlation-id': 'corr-doc' },
+      body: {
+        title: 'Draft 1',
+        authorName: 'Writer A',
+        settings: { lineLength: 20, pageCount: 10 },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const created = createResponse.body as { id: string; version: number };
+    expect(created.id.startsWith('doc_')).toBe(true);
+    expect(created.version).toBe(1);
+
+    const listResponse = await routeApiRequest({
+      method: 'GET',
+      path: '/api/documents',
+      headers: { 'x-user-id': 'owner-1' },
+    });
+    expect(listResponse.statusCode).toBe(200);
+    const list = listResponse.body as Array<{ id: string }>;
+    expect(list.some((item) => item.id === created.id)).toBe(true);
+
+    const getForbidden = await routeApiRequest({
+      method: 'GET',
+      path: `/api/documents/${created.id}`,
+      headers: { 'x-user-id': 'owner-2' },
+    });
+    expect(getForbidden.statusCode).toBe(403);
+
+    const conflict = await routeApiRequest({
+      method: 'PATCH',
+      path: `/api/documents/${created.id}`,
+      headers: { 'x-user-id': 'owner-1' },
+      body: {
+        synopsis: 'update attempt',
+        expectedVersion: 999,
+      },
+    });
+    expect(conflict.statusCode).toBe(409);
+
+    const updateResponse = await routeApiRequest({
+      method: 'PATCH',
+      path: `/api/documents/${created.id}`,
+      headers: { 'x-user-id': 'owner-1' },
+      body: {
+        synopsis: 'updated synopsis',
+        content: 'updated content',
+        expectedVersion: 1,
+      },
+    });
+    expect(updateResponse.statusCode).toBe(200);
+    const updated = updateResponse.body as { synopsis: string; version: number };
+    expect(updated.synopsis).toBe('updated synopsis');
+    expect(updated.version).toBe(2);
+  });
+
   it('routes export endpoint', async () => {
     const response = await routeApiRequest({
       method: 'POST',

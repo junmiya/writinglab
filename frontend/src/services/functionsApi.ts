@@ -47,19 +47,26 @@ function readApiError(body: unknown): string | null {
   return typeof candidate.error === 'string' ? candidate.error : null;
 }
 
-export async function postFunctionsJson<TResponse>(
+type HttpMethod = 'GET' | 'POST' | 'PATCH';
+
+export async function requestFunctionsJson<TResponse>(
+  method: HttpMethod,
   path: string,
-  body: unknown,
+  body?: unknown,
 ): Promise<TResponse> {
   const baseUrl = getFunctionsBaseUrl();
   if (!baseUrl) {
     throw new Error('FUNCTIONS_BASE_URL_NOT_CONFIGURED');
   }
 
+  const headers = buildHeaders();
+  const init: RequestInit = { method, headers };
+  if (body !== undefined) {
+    init.body = JSON.stringify(body);
+  }
+
   const response = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers: buildHeaders(),
-    body: JSON.stringify(body),
+    ...init,
   });
 
   const parsed = (await response.json().catch(() => null)) as unknown;
@@ -68,4 +75,11 @@ export async function postFunctionsJson<TResponse>(
   }
 
   return parsed as TResponse;
+}
+
+export async function postFunctionsJson<TResponse>(
+  path: string,
+  body: unknown,
+): Promise<TResponse> {
+  return requestFunctionsJson<TResponse>('POST', path, body);
 }

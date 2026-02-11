@@ -3,6 +3,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { handleExportDocument } from './advice/exportDocument';
 import { handleGenerateAdvice } from './advice/generateAdvice';
 import { createCorrelationId } from './common/logging';
+import {
+  handleCreateDocument,
+  handleGetDocument,
+  handleListDocuments,
+  handleUpdateDocument,
+} from './documents/handlers';
 
 interface AuthContext {
   uid: string;
@@ -149,6 +155,43 @@ export async function routeApiRequest(req: ApiRequest): Promise<ApiResponse> {
       error: 'AUTH_REQUIRED',
       correlationId,
     });
+  }
+
+  if (method === 'GET' && path === '/api/documents') {
+    const result = await handleListDocuments({
+      correlationId,
+      ownerId: auth.uid,
+    });
+    return jsonResponse(result.statusCode, result.body);
+  }
+
+  if (method === 'POST' && path === '/api/documents') {
+    const result = await handleCreateDocument({
+      correlationId,
+      ownerId: auth.uid,
+      body: req.body,
+    });
+    return jsonResponse(result.statusCode, result.body);
+  }
+
+  const detailMatch = path.match(/^\/api\/documents\/([^/]+)$/);
+  if (method === 'GET' && detailMatch?.[1]) {
+    const result = await handleGetDocument({
+      correlationId,
+      ownerId: auth.uid,
+      documentId: detailMatch[1],
+    });
+    return jsonResponse(result.statusCode, result.body);
+  }
+
+  if (method === 'PATCH' && detailMatch?.[1]) {
+    const result = await handleUpdateDocument({
+      correlationId,
+      ownerId: auth.uid,
+      documentId: detailMatch[1],
+      body: req.body,
+    });
+    return jsonResponse(result.statusCode, result.body);
   }
 
   if (method === 'POST' && path === '/api/advice/generate') {
