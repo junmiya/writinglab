@@ -14,4 +14,10 @@ All notable changes to this project are documented in this file.
 - Added MVP UI components for editor, advice, structure, and diff/export flows
 - Added contract, integration, and unit test coverage for MVP scope
 - Added spec kit artifacts for `001-build-scenario-writing`
+- Added frontend and functions local runtime wiring (`vite`, functions local HTTP server)
+- Added functions document CRUD API implementation and frontend document create/save/load workflow
+- Added functions advice model listing endpoint (`GET /api/advice/models`)
+- Added frontend dynamic advice model loading from API with fallback behavior
+- Added switchable functions document store backend (`memory` / `firestore`)
+- Added GitHub Actions CI workflow (`.github/workflows/ci.yml`)
 <!-- speckit:end:unreleased -->
