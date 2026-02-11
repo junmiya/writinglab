@@ -1,6 +1,6 @@
 import { buildLogContext, logDocumentLoad, logDocumentSave } from '../common/logging';
 import {
-  documentStore,
+  getDocumentStore,
   type CharacterProfile,
   type DocumentSettings,
   type ScriptDocumentPatch,
@@ -10,6 +10,8 @@ interface ApiResult {
   statusCode: number;
   body: unknown;
 }
+
+const documentStore = getDocumentStore();
 
 class DocumentApiError extends Error {
   readonly statusCode: number;
@@ -197,7 +199,7 @@ export async function handleListDocuments(input: {
   correlationId: string;
   ownerId: string;
 }): Promise<ApiResult> {
-  const documents = documentStore.listByOwner(input.ownerId).map((doc) => ({
+  const documents = (await documentStore.listByOwner(input.ownerId)).map((doc) => ({
     id: doc.id,
     title: doc.title,
     authorName: doc.authorName,
@@ -218,7 +220,7 @@ export async function handleCreateDocument(input: {
 }): Promise<ApiResult> {
   try {
     const parsed = parseCreateBody(input.body);
-    const created = documentStore.create(input.ownerId, parsed);
+    const created = await documentStore.create(input.ownerId, parsed);
     return {
       statusCode: 201,
       body: created,
@@ -235,7 +237,7 @@ export async function handleGetDocument(input: {
 }): Promise<ApiResult> {
   try {
     const startMs = Date.now();
-    const doc = documentStore.getById(input.documentId);
+    const doc = await documentStore.getById(input.documentId);
     if (!doc) {
       throw new DocumentApiError(404, 'DOCUMENT_NOT_FOUND');
     }
@@ -282,7 +284,7 @@ export async function handleUpdateDocument(input: {
   });
 
   try {
-    const existing = documentStore.getById(input.documentId);
+    const existing = await documentStore.getById(input.documentId);
     if (!existing) {
       throw new DocumentApiError(404, 'DOCUMENT_NOT_FOUND');
     }
@@ -304,7 +306,7 @@ export async function handleUpdateDocument(input: {
     }
 
     const startMs = Date.now();
-    const updated = documentStore.update(input.documentId, patch);
+    const updated = await documentStore.update(input.documentId, patch);
     logDocumentSave(context, {
       version: updated.version,
       changedFields,

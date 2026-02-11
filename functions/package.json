@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
   "scripts": {
     "dev": "tsx src/server.ts",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",

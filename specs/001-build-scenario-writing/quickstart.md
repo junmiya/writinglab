@@ -21,6 +21,7 @@ cp functions/.env.example functions/.env
 ```
 
 Set `VITE_FUNCTIONS_BASE_URL` in `frontend/.env` (for example `http://localhost:8787`).
+Set `DOCUMENT_STORE_BACKEND=firestore` in `functions/.env` when you want persistent storage.
 
 Start development servers in separate terminals:
 

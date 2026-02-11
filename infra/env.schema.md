@@ -19,6 +19,8 @@ This file defines required environment variables for local development and CI.
 ## Functions (`functions/.env`)
 
 - `FIREBASE_PROJECT_ID`: Firebase project id for function runtime
+- `DOCUMENT_STORE_BACKEND`: document repository backend (`memory` or `firestore`)
+- `FIRESTORE_DOCUMENTS_COLLECTION`: optional collection name override (default `documents`)
 - `OPENAI_API_KEY`: OpenAI provider key (server-side only)
 - `GEMINI_API_KEY`: Google Gemini provider key (server-side only)
 - `ANTHROPIC_API_KEY`: Anthropic provider key (server-side only)

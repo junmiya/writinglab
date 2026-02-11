@@ -17,6 +17,7 @@ Required runtime prerequisites:
 - Node.js 20+
 - Firebase project configuration for Auth/Firestore/Functions
 - `frontend/.env` must point `VITE_FUNCTIONS_BASE_URL` to the local/prod Functions endpoint
+- `functions/.env` can set `DOCUMENT_STORE_BACKEND=firestore` to persist documents in Firestore
 <!-- speckit:end:installation -->
 
 <!-- speckit:start:features -->
