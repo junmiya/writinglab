@@ -1,4 +1,7 @@
+import { isFunctionsApiConfigured, postFunctionsJson } from './functionsApi';
+
 export interface ExportInput {
+  documentId?: string;
   title: string;
   authorName: string;
   content: string;
@@ -34,5 +37,17 @@ export function createExportPayload(input: ExportInput): ExportPayload {
 }
 
 export async function requestExport(input: ExportInput): Promise<ExportPayload> {
-  return createExportPayload(input);
+  if (!isFunctionsApiConfigured()) {
+    return createExportPayload(input);
+  }
+
+  const documentId = input.documentId && input.documentId.trim() ? input.documentId : 'local-draft';
+  return postFunctionsJson<ExportPayload>(
+    `/api/documents/${encodeURIComponent(documentId)}/export`,
+    {
+      title: input.title,
+      authorName: input.authorName,
+      content: input.content,
+    },
+  );
 }

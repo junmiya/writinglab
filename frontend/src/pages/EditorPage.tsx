@@ -14,13 +14,9 @@ import {
   applyToolbarAction,
   type ToolbarAction,
 } from '../components/toolbar/ScriptToolbar';
+import { generateAdvice } from '../services/adviceService';
 import { requestExport } from '../services/exportService';
-import {
-  createAdviceState,
-  selectPanelModel,
-  setPanelPreset,
-  type AdviceProvider,
-} from '../stores/adviceStore';
+import { createAdviceState, selectPanelModel, setPanelPreset } from '../stores/adviceStore';
 import { createInitialEditorState, updateContent, updateSettings } from '../stores/editorStore';
 
 interface AdviceResult {
@@ -36,22 +32,7 @@ const structureSegments: StructureSegment[] = [
 ];
 
 const defaultSegmentId = structureSegments[0]?.id ?? 'intro';
-
-function buildAdviceFeedback(
-  provider: AdviceProvider,
-  preset: string,
-  synopsis: string,
-  content: string,
-  selectedText?: string,
-): AdviceResult {
-  const scope = selectedText ? 'partial' : 'full';
-  const source = (selectedText ?? content).slice(0, 80).replace(/\s+/g, ' ').trim();
-
-  return {
-    structureFeedback: `${provider}/${preset}/${scope}: 構成の繋がりを確認。対象: ${source || '本文未入力'}`,
-    emotionalFeedback: `${provider}/${preset}/${scope}: 感情の動機を補強。あらすじ長: ${synopsis.length}`,
-  };
-}
+const localDocumentId = 'local-draft';
 
 export function EditorPage(): ReactElement {
   const [state, setState] = useState(createInitialEditorState);
@@ -78,23 +59,25 @@ export function EditorPage(): ReactElement {
   }, [state]);
 
   const regenerateAdvice = async (selectedText?: string): Promise<void> => {
-    const nextA = buildAdviceFeedback(
-      adviceState.panelA.provider,
-      adviceState.panelA.preset,
-      state.synopsis,
-      state.content,
-      selectedText,
-    );
-    const nextB = buildAdviceFeedback(
-      adviceState.panelB.provider,
-      adviceState.panelB.preset,
-      state.synopsis,
-      state.content,
-      selectedText,
-    );
+    const response = await generateAdvice({
+      documentId: localDocumentId,
+      synopsis: state.synopsis,
+      content: state.content,
+      ...(selectedText !== undefined ? { selectedText } : {}),
+      panelAProvider: adviceState.panelA.provider,
+      panelBProvider: adviceState.panelB.provider,
+      panelAPreset: adviceState.panelA.preset,
+      panelBPreset: adviceState.panelB.preset,
+    });
 
-    setPanelAAdvice(nextA);
-    setPanelBAdvice(nextB);
+    setPanelAAdvice({
+      structureFeedback: response.panelA.structureFeedback,
+      emotionalFeedback: response.panelA.emotionalFeedback,
+    });
+    setPanelBAdvice({
+      structureFeedback: response.panelB.structureFeedback,
+      emotionalFeedback: response.panelB.emotionalFeedback,
+    });
   };
 
   const onRequestPartialAdvice = async (selectedText: string): Promise<void> => {
@@ -109,6 +92,7 @@ export function EditorPage(): ReactElement {
   const onExport = async (): Promise<void> => {
     try {
       const payload = await requestExport({
+        documentId: localDocumentId,
         title: state.title || 'untitled-script',
         authorName: state.authorName || 'unknown-author',
         content: state.content,

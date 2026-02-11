@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createExportPayload } from '../../src/services/exportService';
+import { createExportPayload, requestExport } from '../../src/services/exportService';
 
 describe('exportService', () => {
   it('fails when required metadata is missing', () => {
@@ -14,5 +14,17 @@ describe('exportService', () => {
     expect(result.mimeType).toContain(
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
+  });
+
+  it('uses local payload fallback when functions API is not configured', async () => {
+    const result = await requestExport({
+      documentId: 'doc-local',
+      title: 'Draft',
+      authorName: 'Writer',
+      content: 'body',
+    });
+
+    expect(result.fileName).toBe('Draft.docx');
+    expect(result.content).toContain('Author: Writer');
   });
 });

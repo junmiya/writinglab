@@ -16,6 +16,7 @@ cp functions/.env.example functions/.env
 Required runtime prerequisites:
 - Node.js 20+
 - Firebase project configuration for Auth/Firestore/Functions
+- `frontend/.env` must point `VITE_FUNCTIONS_BASE_URL` to the local/prod Functions endpoint
 <!-- speckit:end:installation -->
 
 <!-- speckit:start:features -->

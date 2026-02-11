@@ -20,6 +20,8 @@ cp frontend/.env.example frontend/.env
 cp functions/.env.example functions/.env
 ```
 
+Set `VITE_FUNCTIONS_BASE_URL` in `frontend/.env` (for example `http://localhost:8787`).
+
 Start development servers in separate terminals:
 
 ```bash
