@@ -334,12 +334,12 @@ export function EditorPage(): ReactElement {
   };
 
   return (
-    <main style={{ display: 'grid', gap: 16 }}>
+    <main className="main-container">
       <h1>Scenario Writing Lab</h1>
 
-      <section aria-label="Document controls" style={{ border: '1px solid #d0d5dd', padding: 12 }}>
+      <section aria-label="Document controls" className="section-container">
         <h3>ドキュメント管理</h3>
-        <div style={{ display: 'grid', gap: 8 }}>
+        <div className="flex-col">
           <label>
             タイトル
             <input
@@ -371,7 +371,7 @@ export function EditorPage(): ReactElement {
             />
           </label>
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <div className="document-actions">
           <button type="button" onClick={() => void onCreateDocument()} disabled={documentPending}>
             新規作成
           </button>
@@ -394,8 +394,8 @@ export function EditorPage(): ReactElement {
             読み込み
           </button>
         </div>
-        <p>現在のドキュメントID: {documentId || '(未保存)'}</p>
-        {documentMessage ? <p>{documentMessage}</p> : null}
+        <p className="status-text">現在のドキュメントID: {documentId || '(未保存)'}</p>
+        {documentMessage ? <p className="status-text">{documentMessage}</p> : null}
       </section>
 
       <ScriptToolbar onApply={onToolbarApply} />
@@ -416,12 +416,12 @@ export function EditorPage(): ReactElement {
 
       <CharacterTable value={characters} onChange={setCharacters} />
 
-      <button type="button" onClick={() => void regenerateAdvice()}>
+      <button type="button" className="btn-primary" onClick={() => void regenerateAdvice()}>
         全体アドバイス更新
       </button>
       {adviceMessage ? <p>{adviceMessage}</p> : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="grid-2col">
         <AdvicePanel
           title="Advice A"
           provider={adviceState.panelA.provider}

@@ -39,7 +39,7 @@ export function CharacterTable({ value, onChange }: CharacterTableProps): ReactE
   return (
     <section aria-label="Character table">
       <h3>登場人物表</h3>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="flex-row">
         <input
           aria-label="Character name"
           value={draftName}
@@ -50,11 +50,15 @@ export function CharacterTable({ value, onChange }: CharacterTableProps): ReactE
           追加
         </button>
       </div>
-      <ul>
+      <ul className="character-list">
         {value.map((character) => (
           <li key={character.id}>
             {character.name}
-            <button type="button" onClick={() => removeCharacter(character.id)}>
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={() => removeCharacter(character.id)}
+            >
               削除
             </button>
           </li>

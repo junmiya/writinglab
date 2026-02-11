@@ -9,7 +9,7 @@ interface SettingsProps {
 
 export function Settings({ value, onChange }: SettingsProps): ReactElement {
   return (
-    <section aria-label="Editor settings" style={{ display: 'flex', gap: 12 }}>
+    <section aria-label="Editor settings" className="flex-row">
       <label>
         文字数/行
         <input

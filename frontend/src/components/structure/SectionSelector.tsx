@@ -16,7 +16,7 @@ export function SectionSelector({
   return (
     <section aria-label="Section selector">
       <h3>執筆開始位置</h3>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="flex-row">
         {segments.map((segment) => (
           <button
             key={segment.id}

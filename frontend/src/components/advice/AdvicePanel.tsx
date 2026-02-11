@@ -25,12 +25,9 @@ export function AdvicePanel({
   onPresetChange,
 }: AdvicePanelProps): ReactElement {
   return (
-    <section
-      aria-label={`${title} advice panel`}
-      style={{ border: '1px solid #d0d5dd', padding: 12 }}
-    >
+    <section aria-label={`${title} advice panel`} className="advice-panel">
       <h3>{title}</h3>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="advice-controls">
         <label>
           Model
           <select
