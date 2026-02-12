@@ -18,7 +18,7 @@ interface ScriptToolbarProps {
 
 export function ScriptToolbar({ onApply }: ScriptToolbarProps): ReactElement {
   return (
-    <div aria-label="Script toolbar" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div aria-label="Script toolbar" className="flex-row">
       <button type="button" onClick={() => onApply('scene')}>
         柱
       </button>

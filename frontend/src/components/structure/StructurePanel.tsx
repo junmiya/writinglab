@@ -19,7 +19,7 @@ export function StructurePanel({ segments, activeSegmentId }: StructurePanelProp
         {segments.map((segment) => {
           const isActive = segment.id === activeSegmentId;
           return (
-            <li key={segment.id} style={{ fontWeight: isActive ? 'bold' : 'normal' }}>
+            <li key={segment.id} className={`structure-segment${isActive ? ' active' : ''}`}>
               {segment.label} ({Math.round(segment.ratio * 100)}%)
             </li>
           );

@@ -24,7 +24,7 @@ export function PartialAdvice({ onRequest }: PartialAdviceProps): ReactElement {
   };
 
   return (
-    <section aria-label="Partial advice request">
+    <section aria-label="Partial advice request" className="section-container">
       <h3>部分アドバイス</h3>
       <textarea
         aria-label="Selected text"
