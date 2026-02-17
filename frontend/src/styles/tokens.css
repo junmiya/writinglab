@@ -27,6 +27,7 @@
     -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic',
     'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', Monaco, 'Courier New', monospace;
+  --font-editor: 'SF Mono', monospace;
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;

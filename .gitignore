@@ -18,5 +18,49 @@ functions/lib/
 .vscode/
 .idea/
 
+# AI agents / IDE extensions
+.adal/
+.agent/
+.augment/
+.claude/skills/
+.cline/
+.codebuddy/
+.codex/
+.commandcode/
+.continue/
+.crush/
+.cursor/
+.factory/
+.goose/
+.iflow/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.pi/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.specify/scripts/
+.specify/templates/
+.trae/
+.vibe/
+.windsurf/
+.zencoder/
+skills/
+
+# Firebase
+.firebase/
+.firebaserc
+
+# Docs (local only)
+implementation_plan.md
+scenario_service_spec.md
+
 # Logs
 *.log

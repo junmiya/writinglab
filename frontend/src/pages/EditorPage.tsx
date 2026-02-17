@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import type { Editor } from '../components/editor/VerticalEditor';
 import { AdvicePanel } from '../components/advice/AdvicePanel';
 import { DiffView } from '../components/advice/DiffView';
 import { PartialAdvice } from '../components/advice/PartialAdvice';
@@ -12,6 +13,7 @@ import { StructurePanel, type StructureSegment } from '../components/structure/S
 import {
   ScriptToolbar,
   applyToolbarAction,
+  insertToolbarAction,
   type ToolbarAction,
 } from '../components/toolbar/ScriptToolbar';
 import {
@@ -118,6 +120,7 @@ export function EditorPage(): ReactElement {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [documentMessage, setDocumentMessage] = useState('');
   const [documentPending, setDocumentPending] = useState(false);
+  const [tiptapEditor, setTiptapEditor] = useState<Editor | null>(null);
 
   const activeDocumentId = documentId || localDocumentId;
 
@@ -191,8 +194,16 @@ export function EditorPage(): ReactElement {
   }, []);
 
   const onToolbarApply = (action: ToolbarAction): void => {
-    setState((current) => updateContent(current, applyToolbarAction(current.content, action)));
+    if (tiptapEditor) {
+      insertToolbarAction(tiptapEditor, action);
+    } else {
+      setState((current) => updateContent(current, applyToolbarAction(current.content, action)));
+    }
   };
+
+  const onEditorReady = useCallback((editor: Editor) => {
+    setTiptapEditor(editor);
+  }, []);
 
   const remaining = useMemo(() => {
     return Math.max(state.metrics.totalCapacity - state.content.length, 0);
@@ -344,9 +355,10 @@ export function EditorPage(): ReactElement {
             タイトル
             <input
               value={state.title}
-              onChange={(event) =>
-                setState((current) => ({ ...current, title: event.currentTarget.value }))
-              }
+              onChange={(event) => {
+                const val = event.currentTarget.value;
+                setState((current) => ({ ...current, title: val }));
+              }}
               placeholder="脚本タイトル"
             />
           </label>
@@ -354,9 +366,10 @@ export function EditorPage(): ReactElement {
             著者
             <input
               value={state.authorName}
-              onChange={(event) =>
-                setState((current) => ({ ...current, authorName: event.currentTarget.value }))
-              }
+              onChange={(event) => {
+                const val = event.currentTarget.value;
+                setState((current) => ({ ...current, authorName: val }));
+              }}
               placeholder="著者名"
             />
           </label>
@@ -364,9 +377,10 @@ export function EditorPage(): ReactElement {
             あらすじ
             <textarea
               value={state.synopsis}
-              onChange={(event) =>
-                setState((current) => ({ ...current, synopsis: event.currentTarget.value }))
-              }
+              onChange={(event) => {
+                const val = event.currentTarget.value;
+                setState((current) => ({ ...current, synopsis: val }));
+              }}
               placeholder="あらすじ"
             />
           </label>
@@ -408,6 +422,7 @@ export function EditorPage(): ReactElement {
       <VerticalEditor
         value={state.content}
         onChange={(value) => setState((current) => updateContent(current, value))}
+        onEditorReady={onEditorReady}
       />
 
       <p>
