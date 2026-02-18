@@ -64,9 +64,10 @@ describe('ドキュメント管理セクション入力検証', () => {
   it('あらすじ: ペースト相当の大量テキスト入力ができる', () => {
     render(<EditorPage />);
     const textarea = screen.getByPlaceholderText('あらすじ');
-    const longText = '東京の下町に住む青年・太郎は、ある日突然不思議な手紙を受け取る。\n'
-      + 'それは亡き祖父からの手紙で、古い蔵に隠された秘密について書かれていた。\n'
-      + '太郎は幼馴染の花子と共に、祖父の残した謎を解き明かす旅に出る。';
+    const longText =
+      '東京の下町に住む青年・太郎は、ある日突然不思議な手紙を受け取る。\n' +
+      'それは亡き祖父からの手紙で、古い蔵に隠された秘密について書かれていた。\n' +
+      '太郎は幼馴染の花子と共に、祖父の残した謎を解き明かす旅に出る。';
     fireEvent.change(textarea, { target: { value: longText } });
     expect((textarea as HTMLTextAreaElement).value).toBe(longText);
   });
