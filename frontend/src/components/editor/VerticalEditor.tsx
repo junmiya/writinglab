@@ -46,6 +46,10 @@ export function VerticalEditor({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  // Track IME composition state to prevent content overwrites during input
+  const composingRef = useRef(false);
+  const pendingValueRef = useRef<string | null>(null);
+
   const extensions = useMemo(
     () => [
       Document,
@@ -73,7 +77,6 @@ export function VerticalEditor({
         class: 'vertical-editor',
         'aria-label': 'Vertical screenplay editor',
       },
-      // Ensure we don't block input events unnecessarily
     },
   });
 
@@ -83,34 +86,61 @@ export function VerticalEditor({
     }
   }, [editor, onEditorReady]);
 
+  // Listen for IME composition events to guard against content overwrites
   useEffect(() => {
-    if (!editor) {
+    if (!editor) return;
+
+    const dom = editor.view.dom;
+    const handleCompositionStart = (): void => {
+      composingRef.current = true;
+    };
+
+    const handleCompositionEnd = (): void => {
+      composingRef.current = false;
+
+      // Apply any value update that was deferred during composition
+      const pending = pendingValueRef.current;
+      if (pending === null) return;
+      pendingValueRef.current = null;
+
+      if (recentEmittedValues.current.has(pending)) {
+        recentEmittedValues.current.delete(pending);
+        return;
+      }
+
+      const currentContent = docToText(editor);
+      if (pending === currentContent) return;
+
+      editor.commands.setContent(textToDoc(pending), { emitUpdate: false });
+    };
+
+    dom.addEventListener('compositionstart', handleCompositionStart);
+    dom.addEventListener('compositionend', handleCompositionEnd);
+    return () => {
+      dom.removeEventListener('compositionstart', handleCompositionStart);
+      dom.removeEventListener('compositionend', handleCompositionEnd);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    // During IME composition, defer the update to avoid disrupting input
+    if (composingRef.current) {
+      pendingValueRef.current = value;
       return;
     }
 
-    // Check if we just emitted this value
     if (recentEmittedValues.current.has(value)) {
-      // This is an echo of our own change. Ignore it.
-      // We can remove it from the set now that we've seen it (to keep set size small)
-      // although keeping it is safer for repeat renders. But usually one prop update per change.
-      // Let's remove it to keep logic clean.
-      // actually, if strict mode calls effect twice... safe to remove?
-      // React 18 strict mode off in prod.
-      // Let's remove it.
       recentEmittedValues.current.delete(value);
       return;
     }
 
-    // Check if the current editor content matches the prop value (redundant but fast)
     const currentContent = docToText(editor);
     if (value === currentContent) {
       return;
     }
 
-    // Otherwise, it's a true external update (or a stale one we lost track of?)
-    // If it's stale (shorter than current but not in set), it might be a race.
-    // But usually "not in set" means "External".
-    // We apply it.
     editor.commands.setContent(textToDoc(value), { emitUpdate: false });
   }, [editor, value]);
 
