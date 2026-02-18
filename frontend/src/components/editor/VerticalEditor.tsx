@@ -14,7 +14,6 @@ interface VerticalEditorProps {
   onEditorReady?: (editor: Editor) => void;
 }
 
-
 function textToDoc(text: string): { type: string; content: object[] } {
   if (!text) {
     return { type: 'doc', content: [{ type: 'paragraph' }] };
