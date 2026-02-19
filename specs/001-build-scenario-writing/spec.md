@@ -90,8 +90,10 @@ pre/post revisions, and exports a file that preserves required formatting.
 - **FR-006**: System MUST save synopsis, script body, character table, and layout settings.
 - **FR-007**: System MUST isolate document access so users can access only their own data.
 - **FR-008**: System MUST support character table management (add/edit/remove entries).
-- **FR-009**: System MUST generate dual advice panels from current writing context.
-- **FR-010**: System MUST allow independent model selection per advice panel.
+- **FR-009**: System MUST generate dual advice panels from current writing context via a
+  unified provider response contract supporting multiple AI providers (e.g., OpenAI,
+  Anthropic) as well as single-provider multi-model configurations.
+- **FR-010**: System MUST allow independent model/provider selection per advice panel.
 - **FR-011**: System MUST allow users to customize and save advice tone presets.
 - **FR-012**: System MUST support partial advice for selected text with full-context support.
 - **FR-013**: System MUST display writing progress indicators (character count/page progress).
@@ -126,6 +128,12 @@ pre/post revisions, and exports a file that preserves required formatting.
   panel model choices, preset/tone inputs, and generated feedback.
 - **StructureMap**: Mapping artifact linking synopsis segments and current draft regions to
   high-level narrative structure positions.
+
+## Clarifications
+
+### Session 2026-02-19
+
+- Q: MVP のデュアルアドバイスパネルで対応すべき AI プロバイダーは？ → A: 2プロバイダー対応（例：OpenAI + Anthropic）を統一レスポンス契約で接続。単一プロバイダーの2モデル構成も選択可能とする。
 
 ## Success Criteria *(mandatory)*
 
