@@ -82,7 +82,8 @@ pre/post revisions, and exports a file that preserves required formatting.
 
 ### Functional Requirements
 
-- **FR-001**: System MUST require authentication before document access.
+- **FR-001**: System MUST require authentication via Firebase Authentication (Google sign-in
+  and email/password) before document access.
 - **FR-002**: System MUST allow users to create, open, update, and list script documents.
 - **FR-003**: System MUST support vertical writing mode for screenplay editing.
 - **FR-004**: System MUST provide format helper actions for screenplay structures
@@ -141,6 +142,7 @@ pre/post revisions, and exports a file that preserves required formatting.
 - Q: AI アドバイス生成が失敗またはタイムアウトした場合の対処は？ → A: 失敗パネルのみにエラー表示＋再試行ボタンを表示し、もう一方のパネルは独立して正常表示を維持する。
 - Q: MVP のエクスポート形式は？ → A: PDF + Word (.docx) の2形式を対応する。
 - Q: MVP のデータ永続化のストレージ戦略は？ → A: Cloud Firestore をバックエンドとして使用する。
+- Q: MVP の認証方式は？ → A: Firebase Authentication（Google ログイン + メール/パスワード）を採用する。
 
 ## Success Criteria *(mandatory)*
 
