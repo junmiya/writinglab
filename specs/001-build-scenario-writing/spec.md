@@ -100,7 +100,8 @@ pre/post revisions, and exports a file that preserves required formatting.
 - **FR-013**: System MUST display writing progress indicators (character count/page progress).
 - **FR-014**: System MUST provide structure mapping guidance tied to synopsis and draft state.
 - **FR-015**: System MUST provide revision comparison between before/after edits.
-- **FR-016**: System MUST export script content to a downloadable document format.
+- **FR-016**: System MUST export script content to downloadable PDF and Word (.docx) formats,
+  preserving screenplay formatting intent in both outputs.
 - **FR-017**: System MUST log operational failures for save, advice generation, and export
   with actionable diagnostic context.
 - **FR-018**: System MUST define rollback actions for any release that changes document data
@@ -136,6 +137,7 @@ pre/post revisions, and exports a file that preserves required formatting.
 
 - Q: MVP のデュアルアドバイスパネルで対応すべき AI プロバイダーは？ → A: 2プロバイダー対応（例：OpenAI + Anthropic）を統一レスポンス契約で接続。単一プロバイダーの2モデル構成も選択可能とする。
 - Q: AI アドバイス生成が失敗またはタイムアウトした場合の対処は？ → A: 失敗パネルのみにエラー表示＋再試行ボタンを表示し、もう一方のパネルは独立して正常表示を維持する。
+- Q: MVP のエクスポート形式は？ → A: PDF + Word (.docx) の2形式を対応する。
 
 ## Success Criteria *(mandatory)*
 
