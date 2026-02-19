@@ -88,8 +88,10 @@ pre/post revisions, and exports a file that preserves required formatting.
 - **FR-004**: System MUST provide format helper actions for screenplay structures
   (scene heading, action, dialogue, brackets/quotes).
 - **FR-005**: System MUST allow users to adjust line-length and page-size guidance settings.
-- **FR-006**: System MUST save synopsis, script body, character table, and layout settings.
-- **FR-007**: System MUST isolate document access so users can access only their own data.
+- **FR-006**: System MUST save synopsis, script body, character table, and layout settings
+  to Cloud Firestore as the persistence backend.
+- **FR-007**: System MUST isolate document access so users can access only their own data,
+  enforced via Firestore security rules scoped to authenticated user IDs.
 - **FR-008**: System MUST support character table management (add/edit/remove entries).
 - **FR-009**: System MUST generate dual advice panels from current writing context via a
   unified provider response contract supporting multiple AI providers (e.g., OpenAI,
@@ -138,6 +140,7 @@ pre/post revisions, and exports a file that preserves required formatting.
 - Q: MVP のデュアルアドバイスパネルで対応すべき AI プロバイダーは？ → A: 2プロバイダー対応（例：OpenAI + Anthropic）を統一レスポンス契約で接続。単一プロバイダーの2モデル構成も選択可能とする。
 - Q: AI アドバイス生成が失敗またはタイムアウトした場合の対処は？ → A: 失敗パネルのみにエラー表示＋再試行ボタンを表示し、もう一方のパネルは独立して正常表示を維持する。
 - Q: MVP のエクスポート形式は？ → A: PDF + Word (.docx) の2形式を対応する。
+- Q: MVP のデータ永続化のストレージ戦略は？ → A: Cloud Firestore をバックエンドとして使用する。
 
 ## Success Criteria *(mandatory)*
 
