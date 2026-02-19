@@ -71,7 +71,8 @@ pre/post revisions, and exports a file that preserves required formatting.
 
 ### Edge Cases
 
-- What happens when AI provider response fails or times out during advice generation?
+- When an AI provider response fails or times out, the affected panel displays an error
+  message with a retry button; the other panel continues to display its result independently.
 - How does the system handle save conflicts from two sessions editing the same document?
 - What happens when users attempt export with incomplete required metadata (title/author)?
 - How does the system handle character references that were deleted from the character list?
@@ -134,6 +135,7 @@ pre/post revisions, and exports a file that preserves required formatting.
 ### Session 2026-02-19
 
 - Q: MVP のデュアルアドバイスパネルで対応すべき AI プロバイダーは？ → A: 2プロバイダー対応（例：OpenAI + Anthropic）を統一レスポンス契約で接続。単一プロバイダーの2モデル構成も選択可能とする。
+- Q: AI アドバイス生成が失敗またはタイムアウトした場合の対処は？ → A: 失敗パネルのみにエラー表示＋再試行ボタンを表示し、もう一方のパネルは独立して正常表示を維持する。
 
 ## Success Criteria *(mandatory)*
 
