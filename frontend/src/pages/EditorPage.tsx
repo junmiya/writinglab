@@ -581,6 +581,59 @@ export function EditorPage(): ReactElement {
                 placeholder="著者名"
               />
             </div>
+            {/* 小説モード: テーマ・世界観を併記（右から タイトル→著者→テーマ→世界観） */}
+            {state.contentType === 'novel' && (
+              <>
+                <div style={{ flex: 1, direction: 'ltr' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>テーマ</label>
+                  <VerticalEditor
+                    value={state.worldbuilding?.theme ?? ''}
+                    onChange={(value) =>
+                      setState((current) => ({
+                        ...current,
+                        worldbuilding: {
+                          ...(current.worldbuilding ?? {
+                            theme: '',
+                            characters: [],
+                            worldview: '',
+                            timeline: [],
+                            glossary: [],
+                          }),
+                          theme: value,
+                        },
+                      }))
+                    }
+                    lineCount={3}
+                    charsPerColumn={state.novelSettings?.lineLength ?? 20}
+                    placeholder="テーマ"
+                  />
+                </div>
+                <div style={{ flex: 1, direction: 'ltr' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>世界観</label>
+                  <VerticalEditor
+                    value={state.worldbuilding?.worldview ?? ''}
+                    onChange={(value) =>
+                      setState((current) => ({
+                        ...current,
+                        worldbuilding: {
+                          ...(current.worldbuilding ?? {
+                            theme: '',
+                            characters: [],
+                            worldview: '',
+                            timeline: [],
+                            glossary: [],
+                          }),
+                          worldview: value,
+                        },
+                      }))
+                    }
+                    lineCount={4}
+                    charsPerColumn={state.novelSettings?.lineLength ?? 20}
+                    placeholder="世界観"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </section>
 
