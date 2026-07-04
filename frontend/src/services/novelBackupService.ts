@@ -1,4 +1,9 @@
-import type { NovelContent, NovelSettings, Worldbuilding } from '../types/novel';
+import type {
+  NovelContent,
+  NovelSettings,
+  Worldbuilding,
+  NovelDiscussionMessage,
+} from '../types/novel';
 
 /**
  * Novel backup (FR-031): full-fidelity JSON for lossless restore + human-readable
@@ -16,6 +21,7 @@ export interface NovelBackupInput {
   novelSettings: NovelSettings;
   worldbuilding: Worldbuilding;
   novelCommentary?: unknown;
+  novelDiscussion?: NovelDiscussionMessage[];
 }
 
 export interface NovelBackup extends NovelBackupInput {

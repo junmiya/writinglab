@@ -6,6 +6,7 @@ import type {
   TimelineEntry,
   GlossaryEntry,
   Worldbuilding,
+  NovelDiscussionMessage,
 } from '../types/novel';
 import {
   DEFAULT_NOVEL_SETTINGS,
@@ -44,6 +45,7 @@ export interface EditorState {
   novelContent?: NovelContent;
   novelSettings?: NovelSettings;
   worldbuilding?: Worldbuilding;
+  novelDiscussion?: NovelDiscussionMessage[];
 }
 
 export const DEFAULT_SETTINGS: EditorSettings = {
@@ -193,7 +195,11 @@ function renumber<T extends { order: number }>(items: T[]): T[] {
   return items.map((item, index) => ({ ...item, order: index }));
 }
 
-export function addChapter(nc: NovelContent, title = '', id: string = genNovelId('ch')): NovelContent {
+export function addChapter(
+  nc: NovelContent,
+  title = '',
+  id: string = genNovelId('ch'),
+): NovelContent {
   const chapter: NovelChapter = { id, title, order: nc.chapters.length, body: '' };
   return { ...nc, chapters: [...nc.chapters, chapter] };
 }

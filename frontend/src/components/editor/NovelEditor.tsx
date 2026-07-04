@@ -30,7 +30,7 @@ import {
   backupFilename,
 } from '../../services/novelBackupService';
 import { NovelAdvicePanel } from '../advice/NovelAdvicePanel';
-import { NovelDiscussionPanel, type NovelDiscussionMessage } from '../advice/NovelDiscussionPanel';
+import { NovelDiscussionPanel } from '../advice/NovelDiscussionPanel';
 
 interface NovelEditorProps {
   state: EditorState;
@@ -56,7 +56,6 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
   const [activeChapterId, setActiveChapterId] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [backupMessage, setBackupMessage] = useState('');
-  const [discussionMessages, setDiscussionMessages] = useState<NovelDiscussionMessage[]>([]);
   const bodyRef = useRef<EditorHandle | null>(null);
   const importRef = useRef<HTMLInputElement | null>(null);
 
@@ -94,6 +93,7 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
     novelContent,
     novelSettings: state.novelSettings ?? defaultNovelSettings,
     worldbuilding,
+    ...(state.novelDiscussion ? { novelDiscussion: state.novelDiscussion } : {}),
   });
 
   const onExportJson = (): void => {
@@ -127,6 +127,7 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
         novelContent: backup.novelContent,
         novelSettings: backup.novelSettings,
         worldbuilding: backup.worldbuilding,
+        ...(backup.novelDiscussion ? { novelDiscussion: backup.novelDiscussion } : {}),
       }));
       setActiveChapterId(null);
       setActiveSectionId(null);
@@ -384,8 +385,10 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
         <NovelDiscussionPanel
           synopsis={state.synopsis}
           content={flatBody}
-          messages={discussionMessages}
-          onMessagesChange={setDiscussionMessages}
+          messages={state.novelDiscussion ?? []}
+          onMessagesChange={(msgs) =>
+            setState((current) => ({ ...current, novelDiscussion: msgs }))
+          }
         />
       </section>
 

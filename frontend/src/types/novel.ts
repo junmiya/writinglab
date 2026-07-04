@@ -77,6 +77,17 @@ export interface Worldbuilding {
   glossary: GlossaryEntry[];
 }
 
+// ── AI 対話批評の履歴（FR-030）──
+
+/** One turn of the dialogue. 'user' = the author's intervention (FR-030 continuation). */
+export interface NovelDiscussionMessage {
+  role: 'A' | 'B' | 'user';
+  /** AI provider for A/B turns; omitted for user turns. */
+  provider?: 'gemini' | 'claude';
+  text: string;
+  timestamp: number;
+}
+
 export const DEFAULT_NOVEL_SETTINGS: NovelSettings = {
   writingDirection: 'vertical',
   lineLength: 20,

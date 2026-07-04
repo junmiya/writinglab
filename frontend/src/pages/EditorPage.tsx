@@ -154,6 +154,7 @@ export function EditorPage(): ReactElement {
                     timeline: [],
                     glossary: [],
                   },
+                  ...(script.novelDiscussion ? { novelDiscussion: script.novelDiscussion } : {}),
                 }
               : {}),
           });
@@ -195,6 +196,7 @@ export function EditorPage(): ReactElement {
               ...(state.novelContent ? { novelContent: state.novelContent } : {}),
               ...(state.novelSettings ? { novelSettings: state.novelSettings } : {}),
               ...(state.worldbuilding ? { worldbuilding: state.worldbuilding } : {}),
+              ...(state.novelDiscussion ? { novelDiscussion: state.novelDiscussion } : {}),
             }
           : {}),
       });

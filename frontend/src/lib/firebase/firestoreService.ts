@@ -19,7 +19,12 @@ import {
 import { db } from './config';
 import type { UserProfile, UserRole } from './authService';
 import type { FormatPreset } from '../../types/formatPreset';
-import type { NovelContent, NovelSettings, Worldbuilding } from '../../types/novel';
+import type {
+  NovelContent,
+  NovelSettings,
+  Worldbuilding,
+  NovelDiscussionMessage,
+} from '../../types/novel';
 
 export type ContentType = 'screenplay' | 'novel';
 
@@ -66,6 +71,7 @@ export interface FirestoreScript {
   novelSettings?: NovelSettings;
   worldbuilding?: Worldbuilding;
   novelCommentary?: { editor: unknown[]; critic: unknown[] };
+  novelDiscussion?: NovelDiscussionMessage[];
   createdAt?: FieldValue | Date;
   updatedAt?: FieldValue | Date;
 }
@@ -172,6 +178,7 @@ export async function updateScript(
       | 'novelSettings'
       | 'worldbuilding'
       | 'novelCommentary'
+      | 'novelDiscussion'
     >
   >,
 ): Promise<void> {
