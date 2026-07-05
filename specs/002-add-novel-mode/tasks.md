@@ -156,12 +156,12 @@ description: "Task list for 小説モード追加（脚本／小説の分離）"
 - [ ] T044a [US2] 小説プロンプトプリセット（スタンダード/文体重視/構成重視）を `frontend/src/modes/novel/prompts.ts` に定義し、既存プリセット基盤（`adviceStore` / プリセット保存・選択）で `contentType` ごとに分離して保存・選択できるようにする（FR-014）
 - [ ] T044b [US2] `frontend/src/components/advice/PartialAdvice.tsx` を小説モードの部分選択プロンプト（FR-011「部分選択向け」）に対応させ、`adviceService` 経由で `contentType` を伝搬
 
-#### AI 拡張（Session 2・US2）
+#### AI 拡張（Session 2・#12 で先行実装）
 
-- [ ] T045n [US2] 小説 `NovelEditor` の **あらすじ・本文の上下** に AI アドバイスパネル（`SynopsisCommentary`/`ContentCommentary` 相当）を小説プロンプトで配線（FR-029）
-- [ ] T046n [US2] 小説向け **AI 対話批評**（`DiscussionPanel` 相当）を配線し、筆者の「確認したいこと」入力欄を持たせて対話（FR-030）。`novelCommentary`/`discussionMessages` に保存
-- [ ] T047n [US2] 「**テーマから自動生成**」: テーマを基に AI で 人物名・年表・用語集・あらすじ を生成して各フィールドへ反映（既存値は上書き確認）。`frontend/src/services/novelGenerateService.ts` ＋ WorldbuildingPanel にボタン（FR-028）
-- [ ] T048n [US2] 上記 AI 拡張のテスト（生成サービスのプロンプト・反映、対話入力の往復、混線防止 SC-007）
+- [x] T045n [US2] 小説 `NovelAdvicePanel`（編集者/文芸評論家/校正者・**タブ形式**）を あらすじ・本文の上下に配線（FR-029）
+- [x] T046n [US2] 小説 `NovelDiscussionPanel`（編集者 vs 文芸評論家）を配線し、著者の「確認したいこと」入力欄＋アイデア創出/採点枠組み。**履歴を永続化**（`EditorState.novelDiscussion` → Firestore／JSON バックアップ）し、**著者が介入して議論を継続**できる（FR-030）
+- [ ] T047n [US2] 「**テーマから自動生成**」: テーマを基に AI で 人物名・年表・用語集・あらすじ を生成して各フィールドへ反映（既存値は上書き確認）。`frontend/src/services/novelGenerateService.ts` ＋ WorldbuildingPanel にボタン（FR-028・**未実装／後続**）
+- [x] T048n [US2] AI 拡張のテスト基盤（プロンプト分離・型）を整備（生成サービスの本格テストは T047n と併せて後続）
 
 **Checkpoint**: US1 + US2 が独立動作。AI 応答 < 10 秒（SC-003）
 
