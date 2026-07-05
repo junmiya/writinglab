@@ -671,9 +671,6 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                           aspect={aspect}
                           onPatch={(patch) => patchCut(cut.id, patch)}
                         />
-                        <div style={{ marginTop: '0.375rem' }}>
-                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
-                        </div>
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem' }}>
                           <textarea
                             value={cut.action}
@@ -689,6 +686,10 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                             rows={2}
                             style={{ ...cellArea, flex: 1 }}
                           />
+                        </div>
+                        {/* カメラ指示は内容欄の下 */}
+                        <div style={{ marginTop: '0.375rem' }}>
+                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
                         </div>
                       </div>
                     ) : (
@@ -735,7 +736,6 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                             gap: '0.25rem',
                           }}
                         >
-                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
                           <textarea
                             value={cut.action}
                             onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
@@ -743,6 +743,8 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                             rows={3}
                             style={{ ...cellArea, flex: 1 }}
                           />
+                          {/* カメラ指示は内容欄の下（絵欄の操作ボタンと高さを揃える） */}
+                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <textarea
