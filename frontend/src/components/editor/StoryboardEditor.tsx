@@ -22,13 +22,14 @@ import {
   resolveFrameAspect,
   CAMERA_SIZE_OPTIONS,
   CAMERA_WORK_OPTIONS,
+  formatCamera,
   type CameraSize,
   type CameraWork,
   type StoryboardContent,
   type StoryboardCut,
   type StoryboardSettings,
 } from '../../types/storyboard';
-import { ChevronUp, ChevronDown, Plus, Trash2, Wand2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Trash2, Wand2, Camera } from 'lucide-react';
 import { AiAdvicePanel } from '../advice/AiAdvicePanel';
 import { AiDiscussionPanel } from '../advice/AiDiscussionPanel';
 import {
@@ -73,6 +74,108 @@ const colLabel: React.CSSProperties = {
 };
 
 const smallSelect: React.CSSProperties = { fontSize: '0.6875rem', padding: '0.15rem 0.25rem' };
+
+/**
+ * Camera direction (FR-114) as a compact one-line summary that expands to the
+ * size-start → size-end / work dropdowns on click, keeping cut rows short.
+ */
+function CameraField({
+  cut,
+  onPatch,
+}: {
+  cut: StoryboardCut;
+  onPatch: (patch: Partial<StoryboardCut>) => void;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const summary = formatCamera(cut);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="カメラ指示を編集"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+          fontSize: '0.6875rem',
+          padding: '0.15rem 0.4rem',
+          border: '1px dashed var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          color: summary ? 'var(--text-primary)' : 'var(--text-secondary)',
+          background: 'transparent',
+          cursor: 'pointer',
+        }}
+      >
+        <Camera size={12} /> {summary || 'カメラ指示'}
+      </button>
+      {open && (
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.25rem',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginTop: '0.25rem',
+          }}
+        >
+          <select
+            value={cut.cameraSizeStart ?? ''}
+            onChange={(e) =>
+              onPatch({
+                cameraSizeStart: (e.currentTarget.value || undefined) as CameraSize | undefined,
+              })
+            }
+            title="サイズ（開始）"
+            style={smallSelect}
+          >
+            <option value="">サイズ—</option>
+            {CAMERA_SIZE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>→</span>
+          <select
+            value={cut.cameraSizeEnd ?? ''}
+            onChange={(e) =>
+              onPatch({
+                cameraSizeEnd: (e.currentTarget.value || undefined) as CameraSize | undefined,
+              })
+            }
+            title="サイズ（終了・任意）"
+            style={smallSelect}
+          >
+            <option value="">終了—</option>
+            {CAMERA_SIZE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={cut.cameraWork ?? ''}
+            onChange={(e) =>
+              onPatch({
+                cameraWork: (e.currentTarget.value || undefined) as CameraWork | undefined,
+              })
+            }
+            title="カメラワーク"
+            style={smallSelect}
+          >
+            <option value="">ワーク—</option>
+            {CAMERA_WORK_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Storyboard editor (specs/003 Session 4, FR-118): cut rows laid out as
@@ -254,64 +357,6 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
       >
         <Trash2 size={13} />
       </button>
-    </div>
-  );
-
-  // ── カメラ指示ドロップダウン（FR-114） ──
-  const cameraSelects = (cut: StoryboardCut): ReactElement => (
-    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
-      <select
-        value={cut.cameraSizeStart ?? ''}
-        onChange={(e) =>
-          patchCut(cut.id, {
-            cameraSizeStart: (e.currentTarget.value || undefined) as CameraSize | undefined,
-          })
-        }
-        title="サイズ（開始）"
-        style={smallSelect}
-      >
-        <option value="">サイズ—</option>
-        {CAMERA_SIZE_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>→</span>
-      <select
-        value={cut.cameraSizeEnd ?? ''}
-        onChange={(e) =>
-          patchCut(cut.id, {
-            cameraSizeEnd: (e.currentTarget.value || undefined) as CameraSize | undefined,
-          })
-        }
-        title="サイズ（終了・任意）"
-        style={smallSelect}
-      >
-        <option value="">終了—</option>
-        {CAMERA_SIZE_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <select
-        value={cut.cameraWork ?? ''}
-        onChange={(e) =>
-          patchCut(cut.id, {
-            cameraWork: (e.currentTarget.value || undefined) as CameraWork | undefined,
-          })
-        }
-        title="カメラワーク"
-        style={smallSelect}
-      >
-        <option value="">ワーク—</option>
-        {CAMERA_WORK_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
     </div>
   );
 
@@ -513,7 +558,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
       {/* ── 本体: シーン一覧（左レール）＋カット行（FR-118） ── */}
       <section className="section-container" aria-label="カット表">
         <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-start' }}>
-          <div style={{ width: '200px', flexShrink: 0 }}>
+          <div style={{ width: '280px', flexShrink: 0 }}>
             <SceneList
               content={content}
               activeSceneId={activeScene?.id ?? null}
@@ -612,7 +657,9 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                           aspect={aspect}
                           onPatch={(patch) => patchCut(cut.id, patch)}
                         />
-                        <div style={{ marginTop: '0.375rem' }}>{cameraSelects(cut)}</div>
+                        <div style={{ marginTop: '0.375rem' }}>
+                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
+                        </div>
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem' }}>
                           <textarea
                             value={cut.action}
@@ -674,7 +721,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                             gap: '0.25rem',
                           }}
                         >
-                          {cameraSelects(cut)}
+                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
                           <textarea
                             value={cut.action}
                             onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
