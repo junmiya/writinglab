@@ -136,6 +136,10 @@ Scenario Lab は脚本（screenplay）・小説（novel）の 2 モードを提�
   - カット行: 左から **No.＋秒数（細列）→ 絵（アスペクト比準拠の枠）→ 指示欄（カメラドロップダウン＋内容）→ セリフ・音欄**。
   - シーン一覧は左レール、AI 評価・AI 対話批評は**下部の折りたたみセクション**、書式設定・バックアップ等の低頻度機能はヘッダーメニューへ集約。
   - 列幅比の初期値: 絵=約4割、指示:セリフ=1:1（実装後の実機確認で調整可）。
+- **FR-119（画像の添付・Session 4 追補）**: System MUST 絵枠へ**ローカル画像の取り込み**を提供する（API キー不要。ChatGPT 等の定額プランで生成した絵の受け皿）。
+  - 経路は 2 つ: **ファイル選択**（`image/*`）と**クリップボード貼り付け**（Clipboard API。権限拒否時はエラーメッセージのみ）。
+  - 添付画像は生成画像と同じ **バージョン履歴**（FR-116）に「添付: ファイル名」として追加され、採用/差し戻し/削除・修正ループ（画像編集 API）の起点にできる。
+  - `CutImageVersion.mime?`（省略時 `image/png`）で JPEG/WebP 等を保持し、表示・編集 API・JSON バックアップ（FR-117）で MIME を維持する。非画像ファイルは拒否（データ非破壊）。
 
 ### Constitution Alignment
 
@@ -151,7 +155,7 @@ Scenario Lab は脚本（screenplay）・小説（novel）の 2 モードを提�
 - **StoryboardContent**: `scenes[]`（ドキュメント内ネスト）
 - **StoryboardSettings**: `paperFormat: 'anime'|'film'`、`frameAspect: { preset: '16:9'|'2.35:1'|'custom'; w: number; h: number }`（Session 4・FR-113）
 - **StoryboardCut 拡張（Session 4）**: `cameraSizeStart?/cameraSizeEnd?: 'ELS'|'LS'|'FS'|'KS'|'WS'|'MS'|'BS'|'CU'|'ECU'`、`cameraWork?: 'FIX'|'PAN_L'|'PAN_R'|'TILT_UP'|'TILT_DOWN'|'TU'|'TB'|'ZOOM_IN'|'ZOOM_OUT'|'FOLLOW'|'HANDHELD'|'OTHER'`（FR-114）、`image?: CutImage`（FR-115/116）
-- **CutImage**: `versions: { id, dataB64（アプリ版はファイルパス）, prompt, createdAt }[]`、`adoptedId?: string`、`chat: { role: 'user'|'ai', text, versionId?, timestamp }[]`。Firestore 非保存・JSON バックアップに内包（FR-117）
+- **CutImage**: `versions: { id, dataB64（アプリ版はファイルパス）, mime?（省略時 image/png・FR-119）, prompt, createdAt }[]`、`adoptedId?: string`、`chat: { role: 'user'|'ai', text, versionId?, timestamp }[]`。Firestore 非保存・JSON バックアップに内包（FR-117）
 - **AppSettings（ローカルのみ）**: `openaiApiKey`（BYOK、FR-115）、`imageStyle`（既定: 絵コンテ風モノクロラフ）
 - **FirestoreScript 拡張**: `storyboardContent?`, `storyboardSettings?`, `storyboardDiscussion?`, `sourceScriptId?`
 
@@ -168,4 +172,4 @@ Scenario Lab は脚本（screenplay）・小説（novel）の 2 モードを提�
 
 ## 4. スコープ外（後続）
 
-画像添付（Firebase Storage 導入）、AI 画像生成、絵コンテ用紙の docx/PDF エクスポート、コンテスト・グループの storyboard 対応。
+画像のクラウド保存（Firebase Storage 導入。ローカル添付は FR-119 で対応済み）、絵コンテ用紙の docx/PDF エクスポート、コンテスト・グループの storyboard 対応、ScenarioLab MCP サーバー（`get_cut_context` / `attach_image`、C案 Phase 1）。

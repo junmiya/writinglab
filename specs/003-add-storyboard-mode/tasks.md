@@ -60,7 +60,11 @@
 - [x] T151 [P] テスト: プロンプト組成・失敗時非破壊（採用版維持）・バックアップ往復（画像含む）
 - [ ] T152 検証: 生成 30 秒以内（SC-107）・キーのローカル保存確認（SC-108）・手動 quickstart 更新
 
+### 5d. 画像の添付（FR-119・C案追補）
+
+- [x] T153 添付機能: `CutImageVersion.mime?` 追加、CutImagePanel に「添付」（ファイル選択 `image/*`）＋「貼り付け」（Clipboard API）ボタン（API キー不要で有効）。添付版は履歴に「添付: ファイル名」で追加され修正ループの起点になる。MIME を表示・編集 API・バックアップ往復で維持（ユニットテスト付き）
+
 ## Notes
 
 - 同一ファイル直列: `firestoreService.ts`（T102/T103）、`editorStore.ts`（T102/T110）、`EditorPage.tsx`（T113）
-- 画像添付・AI画像生成・docx/PDF・コンテスト対応はスコープ外（spec §4）
+- クラウド画像保存（Storage）・docx/PDF・コンテスト対応・MCP サーバーはスコープ外（spec §4）

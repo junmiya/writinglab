@@ -1,5 +1,5 @@
-import { useState, type ReactElement } from 'react';
-import { Wand2, MessageSquare, Trash2, Check } from 'lucide-react';
+import { useRef, useState, type ReactElement } from 'react';
+import { Wand2, MessageSquare, Trash2, Check, Paperclip, Clipboard } from 'lucide-react';
 import type { CutImage, FrameAspect, StoryboardCut } from '../../types/storyboard';
 import {
   buildImagePrompt,
@@ -7,6 +7,18 @@ import {
   editImage,
   getOpenAiKey,
 } from '../../services/openaiImageService';
+
+/** Convert an image Blob/File to base64 (without the data: prefix). */
+async function blobToB64(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
 
 interface CutImagePanelProps {
   cut: StoryboardCut;
@@ -34,13 +46,14 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const attachRef = useRef<HTMLInputElement | null>(null);
 
   const image = cut.image ?? emptyImage();
   const adopted = image.versions.find((v) => v.id === image.adoptedId) ?? null;
   const hasKey = getOpenAiKey().length > 0;
 
-  const pushVersion = (b64: string, prompt: string, userText: string): void => {
-    const version = { id: genId(), dataB64: b64, prompt, createdAt: Date.now() };
+  const pushVersion = (b64: string, prompt: string, userText: string, mime = 'image/png'): void => {
+    const version = { id: genId(), dataB64: b64, mime, prompt, createdAt: Date.now() };
     const next: CutImage = {
       versions: [...image.versions, version],
       adoptedId: version.id,
@@ -79,13 +92,54 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
     setBusy(true);
     setMessage('');
     try {
-      const b64 = await editImage(adopted.dataB64, instruction, aspect);
+      const b64 = await editImage(
+        adopted.dataB64,
+        instruction,
+        aspect,
+        adopted.mime ?? 'image/png',
+      );
       pushVersion(b64, instruction, instruction);
       setFeedback('');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // ── 添付（ChatGPT 等の定額プランで生成した画像の取り込み口, FR-119） ──
+
+  const attachBlob = async (blob: Blob, label: string): Promise<void> => {
+    if (!blob.type.startsWith('image/')) {
+      setMessage('画像ファイルを選択してください');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    try {
+      const b64 = await blobToB64(blob);
+      pushVersion(b64, `添付: ${label}`, `（画像を添付: ${label}）`, blob.type);
+      setOpen(true);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onPasteFromClipboard = async (): Promise<void> => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((t) => t.startsWith('image/'));
+        if (type) {
+          await attachBlob(await item.getType(type), 'クリップボード');
+          return;
+        }
+      }
+      setMessage('クリップボードに画像がありません');
+    } catch {
+      setMessage('クリップボードを読み取れませんでした（ブラウザの許可が必要です）');
     }
   };
 
@@ -120,7 +174,7 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
       >
         {adopted ? (
           <img
-            src={`data:image/png;base64,${adopted.dataB64}`}
+            src={`data:${adopted.mime ?? 'image/png'};base64,${adopted.dataB64}`}
             alt={cut.cutNumber}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
@@ -158,6 +212,45 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
         >
           <Wand2 size={12} /> {busy ? '生成中...' : adopted ? '再生成' : '画像を生成'}
         </button>
+        <button
+          type="button"
+          onClick={() => attachRef.current?.click()}
+          disabled={busy}
+          title="画像ファイルを添付（ChatGPT 等で生成した絵の取り込み。API キー不要）"
+          style={{
+            fontSize: '0.6875rem',
+            padding: '0.2rem 0.5rem',
+            display: 'flex',
+            gap: '0.25rem',
+          }}
+        >
+          <Paperclip size={12} /> 添付
+        </button>
+        <button
+          type="button"
+          onClick={() => void onPasteFromClipboard()}
+          disabled={busy}
+          title="クリップボードの画像を貼り付け（API キー不要）"
+          style={{
+            fontSize: '0.6875rem',
+            padding: '0.2rem 0.5rem',
+            display: 'flex',
+            gap: '0.25rem',
+          }}
+        >
+          <Clipboard size={12} /> 貼り付け
+        </button>
+        <input
+          ref={attachRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            if (file) void attachBlob(file, file.name);
+            e.currentTarget.value = '';
+          }}
+        />
         {image.versions.length > 0 && (
           <button
             type="button"
@@ -207,7 +300,7 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
               return (
                 <div key={v.id} style={{ position: 'relative' }}>
                   <img
-                    src={`data:image/png;base64,${v.dataB64}`}
+                    src={`data:${v.mime ?? 'image/png'};base64,${v.dataB64}`}
                     alt={`v${i + 1}`}
                     onClick={() => adoptVersion(v.id)}
                     title={v.prompt}

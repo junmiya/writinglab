@@ -73,9 +73,11 @@ export function formatCamera(cut: {
 
 export interface CutImageVersion {
   id: string;
-  /** Base64 PNG (web). The app build may swap this for a local file path. */
+  /** Base64 image data (web). The app build may swap this for a local file path. */
   dataB64: string;
-  /** Prompt or edit instruction that produced this version. */
+  /** MIME type. Missing = 'image/png' (generated images). Attachments may be jpeg/webp. */
+  mime?: string;
+  /** Prompt / edit instruction / attachment note that produced this version. */
   prompt: string;
   createdAt: number;
 }

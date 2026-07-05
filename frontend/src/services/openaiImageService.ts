@@ -101,11 +101,11 @@ export async function generateImage(prompt: string, aspect: FrameAspect): Promis
   return readImageResponse(res);
 }
 
-function b64ToBlob(b64: string): Blob {
+function b64ToBlob(b64: string, mime = 'image/png'): Blob {
   const bytes = atob(b64);
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-  return new Blob([arr], { type: 'image/png' });
+  return new Blob([arr], { type: mime });
 }
 
 /** Edit an existing frame image with an instruction (議論→修正ループ, FR-116). */
@@ -113,12 +113,13 @@ export async function editImage(
   baseB64: string,
   instruction: string,
   aspect: FrameAspect,
+  mime = 'image/png',
 ): Promise<string> {
   const key = getOpenAiKey();
   if (!key) throw new Error('OpenAI API キーが未設定です（設定から入力してください）');
   const form = new FormData();
   form.append('model', getImageModel());
-  form.append('image', b64ToBlob(baseB64), 'frame.png');
+  form.append('image', b64ToBlob(baseB64, mime), 'frame.png');
   form.append('prompt', instruction);
   form.append('size', aspectToApiSize(aspect));
   const res = await fetch('https://api.openai.com/v1/images/edits', {

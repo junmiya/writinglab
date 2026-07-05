@@ -115,4 +115,35 @@ describe('image prompt + persistence policy (FR-115/117)', () => {
     const restored = parseStoryboardBackupJson(json);
     expect(restored.storyboardContent.scenes[0]!.cuts[0]!.image?.versions[0]?.dataB64).toBe('QUJD');
   });
+
+  it('attached versions keep their mime through backup roundtrip (FR-119)', () => {
+    let sc = addScene(createEmptyStoryboardContent(), 'S', 'scn-1');
+    sc = addCut(sc, 'scn-1', 'cut-a');
+    sc = updateCut(sc, 'scn-1', 'cut-a', {
+      image: {
+        versions: [
+          {
+            id: 'v1',
+            dataB64: 'QUJD',
+            mime: 'image/jpeg',
+            prompt: '添付: rooftop.jpg',
+            createdAt: 1,
+          },
+        ],
+        adoptedId: 'v1',
+        chat: [],
+      },
+    });
+    const json = serializeStoryboardBackupJson({
+      title: 't',
+      authorName: 'a',
+      synopsis: '',
+      storyboardContent: sc,
+      storyboardSettings: { paperFormat: 'anime', frameAspect: FRAME_ASPECT_PRESETS['16:9'] },
+    });
+    const restored = parseStoryboardBackupJson(json);
+    const v = restored.storyboardContent.scenes[0]!.cuts[0]!.image?.versions[0];
+    expect(v?.mime).toBe('image/jpeg');
+    expect(v?.dataB64).toBe('QUJD');
+  });
 });
