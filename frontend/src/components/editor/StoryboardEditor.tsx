@@ -75,6 +75,20 @@ const colLabel: React.CSSProperties = {
 
 const smallSelect: React.CSSProperties = { fontSize: '0.6875rem', padding: '0.15rem 0.25rem' };
 
+/** Fixed-size square icon button so the No. column controls never overflow. */
+const ctrlBtn: React.CSSProperties = {
+  width: '1.5rem',
+  height: '1.5rem',
+  minWidth: 0,
+  padding: 0,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+/** Width of the No.＋秒＋操作 column (must fit 3 square controls in one row). */
+const NO_COL_WIDTH = '5rem';
+
 /**
  * Camera direction (FR-114) as a compact one-line summary that expands to the
  * size-start → size-end / work dropdowns on click, keeping cut rows short.
@@ -329,13 +343,13 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
   };
 
   const cutRowControls = (cut: StoryboardCut, index: number): ReactElement => (
-    <div style={{ display: 'flex', gap: '0.25rem' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem' }}>
       <button
         type="button"
         onClick={() => activeScene && setContent(moveCut(content, activeScene.id, cut.id, -1))}
         disabled={index === 0}
         title="上へ"
-        style={{ padding: '0.2rem', opacity: index === 0 ? 0.3 : 1 }}
+        style={{ ...ctrlBtn, opacity: index === 0 ? 0.3 : 1 }}
       >
         <ChevronUp size={13} />
       </button>
@@ -344,7 +358,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         onClick={() => activeScene && setContent(moveCut(content, activeScene.id, cut.id, 1))}
         disabled={index === activeCuts.length - 1}
         title="下へ"
-        style={{ padding: '0.2rem', opacity: index === activeCuts.length - 1 ? 0.3 : 1 }}
+        style={{ ...ctrlBtn, opacity: index === activeCuts.length - 1 ? 0.3 : 1 }}
       >
         <ChevronDown size={13} />
       </button>
@@ -353,7 +367,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         className="btn-danger"
         onClick={() => activeScene && setContent(removeCut(content, activeScene.id, cut.id))}
         title="カットを削除"
-        style={{ padding: '0.2rem', color: 'var(--color-danger, #dc2626)' }}
+        style={{ ...ctrlBtn, color: 'var(--color-danger, #dc2626)' }}
       >
         <Trash2 size={13} />
       </button>
@@ -371,7 +385,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         const v = e.currentTarget.value;
         patchCut(cut.id, { timeSec: v === '' ? null : Number(v) });
       }}
-      style={{ ...cellInput, width: '3.5rem', fontSize: '0.6875rem', padding: '0.15rem 0.25rem' }}
+      style={{ ...cellInput, width: '100%', fontSize: '0.6875rem', padding: '0.15rem 0.25rem' }}
     />
   );
 
@@ -615,7 +629,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
               <>
                 {!isFilm && (
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <div style={{ width: '3.5rem', ...colLabel }}>No.</div>
+                    <div style={{ width: NO_COL_WIDTH, ...colLabel }}>No.</div>
                     <div style={{ width: '36%', ...colLabel }}>絵（画面）</div>
                     <div style={{ flex: 1, ...colLabel }}>指示（カメラ・内容）</div>
                     <div style={{ flex: 1, ...colLabel }}>セリフ・音</div>
@@ -685,7 +699,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                       >
                         <div
                           style={{
-                            width: '3.5rem',
+                            width: NO_COL_WIDTH,
                             flexShrink: 0,
                             display: 'flex',
                             flexDirection: 'column',
