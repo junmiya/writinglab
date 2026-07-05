@@ -470,13 +470,37 @@ export function updateCut(
   sc: StoryboardContent,
   sceneId: string,
   cutId: string,
-  patch: Partial<Pick<StoryboardCut, 'cutNumber' | 'picture' | 'action' | 'dialogue' | 'timeSec'>>,
+  patch: Partial<
+    Pick<
+      StoryboardCut,
+      | 'cutNumber'
+      | 'picture'
+      | 'action'
+      | 'dialogue'
+      | 'timeSec'
+      | 'cameraSizeStart'
+      | 'cameraSizeEnd'
+      | 'cameraWork'
+      | 'image'
+    >
+  >,
 ): StoryboardContent {
   return {
     ...sc,
     scenes: sc.scenes.map((s) => {
       if (s.id !== sceneId) return s;
-      return { ...s, cuts: s.cuts.map((c) => (c.id === cutId ? { ...c, ...patch } : c)) };
+      return {
+        ...s,
+        cuts: s.cuts.map((c) => {
+          if (c.id !== cutId) return c;
+          const merged = { ...c, ...patch } as StoryboardCut;
+          // Strip undefined keys (explicit clears) so Firestore never sees undefined values.
+          for (const key of Object.keys(merged) as (keyof StoryboardCut)[]) {
+            if (merged[key] === undefined) delete merged[key];
+          }
+          return merged;
+        }),
+      };
     }),
   };
 }
@@ -532,4 +556,22 @@ export function formatDuration(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
   const s = Math.round(totalSec % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Remove per-cut images before persisting to Firestore (FR-117: images are NOT
+ * stored in the document — 1MB limit). Images survive via JSON backup instead.
+ */
+export function stripStoryboardImages(sc: StoryboardContent): StoryboardContent {
+  return {
+    ...sc,
+    scenes: sc.scenes.map((scene) => ({
+      ...scene,
+      cuts: scene.cuts.map((cut) => {
+        if (!cut.image) return cut;
+        const { image: _image, ...rest } = cut;
+        return rest;
+      }),
+    })),
+  };
 }

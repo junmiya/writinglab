@@ -1,5 +1,6 @@
 import { callAi, type AiProvider } from '../lib/aiClient';
 import type { StoryboardContent, StoryboardCut, StoryboardScene } from '../types/storyboard';
+import { formatCamera } from '../types/storyboard';
 import { renumberCuts } from '../stores/editorStore';
 
 /**
@@ -116,10 +117,10 @@ export function storyboardToText(content: StoryboardContent): string {
       const header = `■ ${scene.title || `シーン${i + 1}`}`;
       const cuts = [...scene.cuts]
         .sort((a, b) => a.order - b.order)
-        .map(
-          (c) =>
-            `${c.cutNumber} [画面]${c.picture} [内容]${c.action} [セリフ/音]${c.dialogue} [秒]${c.timeSec ?? '-'}`,
-        )
+        .map((c) => {
+          const camera = formatCamera(c);
+          return `${c.cutNumber}${camera ? ` [カメラ]${camera}` : ''} [画面]${c.picture} [内容]${c.action} [セリフ/音]${c.dialogue} [秒]${c.timeSec ?? '-'}`;
+        })
         .join('\n');
       return [header, cuts].filter(Boolean).join('\n');
     })
