@@ -48,7 +48,12 @@ export function CatalogPage(): ReactElement {
     setShowModeModal(false);
     try {
       const newId = await createScript(user.uid, {
-        title: contentType === 'novel' ? '新しい小説' : '新しい脚本',
+        title:
+          contentType === 'novel'
+            ? '新しい小説'
+            : contentType === 'storyboard'
+              ? '新しい絵コンテ'
+              : '新しい脚本',
         authorName: user.displayName || '',
         settings: { lineLength: 20, pageCount: 10 },
         contentType,
@@ -241,13 +246,11 @@ export function CatalogPage(): ReactElement {
                         borderRadius: 'var(--radius-sm)',
                         verticalAlign: 'middle',
                         backgroundColor:
-                          resolveScriptContentType(script.contentType) === 'novel'
-                            ? 'var(--color-primary-light, #dbeafe)'
-                            : 'var(--color-surface-alt, #f1f5f9)',
+                          MODE_BADGE[resolveScriptContentType(script.contentType)].bg,
                         color: 'var(--text-secondary)',
                       }}
                     >
-                      {resolveScriptContentType(script.contentType) === 'novel' ? '小説' : '脚本'}
+                      {MODE_BADGE[resolveScriptContentType(script.contentType)].label}
                     </span>
                     {script.title || '(無題)'}
                   </h3>
@@ -387,6 +390,20 @@ export function CatalogPage(): ReactElement {
                     章立て・設定資料／縦書き
                   </span>
                 </button>
+                {flags.storyboardMode && (
+                  <button
+                    type="button"
+                    onClick={() => void handleCreate('storyboard')}
+                    disabled={creating}
+                    style={modeButtonStyle}
+                  >
+                    <FileText size={24} />
+                    <span style={{ fontWeight: 600 }}>絵コンテ</span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                      シーン・カット表／秒数
+                    </span>
+                  </button>
+                )}
               </div>
               <button
                 type="button"
@@ -409,6 +426,12 @@ export function CatalogPage(): ReactElement {
     </Layout>
   );
 }
+
+const MODE_BADGE: Record<ContentType, { label: string; bg: string }> = {
+  screenplay: { label: '脚本', bg: 'var(--color-surface-alt, #f1f5f9)' },
+  novel: { label: '小説', bg: 'var(--color-primary-light, #dbeafe)' },
+  storyboard: { label: '絵コンテ', bg: '#fef3c7' },
+};
 
 const modeButtonStyle: React.CSSProperties = {
   flex: 1,

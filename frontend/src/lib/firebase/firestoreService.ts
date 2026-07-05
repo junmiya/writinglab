@@ -25,8 +25,9 @@ import type {
   Worldbuilding,
   NovelDiscussionMessage,
 } from '../../types/novel';
+import type { StoryboardContent, StoryboardSettings } from '../../types/storyboard';
 
-export type ContentType = 'screenplay' | 'novel';
+export type ContentType = 'screenplay' | 'novel' | 'storyboard';
 
 export interface FirestoreScript {
   id: string;
@@ -72,6 +73,12 @@ export interface FirestoreScript {
   worldbuilding?: Worldbuilding;
   novelCommentary?: { editor: unknown[]; critic: unknown[] };
   novelDiscussion?: NovelDiscussionMessage[];
+  // ── Storyboard mode (contentType === 'storyboard'). Unused otherwise. ──
+  storyboardContent?: StoryboardContent;
+  storyboardSettings?: StoryboardSettings;
+  storyboardDiscussion?: NovelDiscussionMessage[];
+  /** Screenplay this storyboard was generated from (FR-110). */
+  sourceScriptId?: string;
   createdAt?: FieldValue | Date;
   updatedAt?: FieldValue | Date;
 }
@@ -81,7 +88,8 @@ export interface FirestoreScript {
  * Pre-migration documents have no `contentType` field and are treated as 'screenplay'.
  */
 export function resolveScriptContentType(value: ContentType | undefined | null): ContentType {
-  return value === 'novel' ? 'novel' : 'screenplay';
+  if (value === 'novel' || value === 'storyboard') return value;
+  return 'screenplay';
 }
 
 /**
@@ -101,7 +109,13 @@ export async function createScript(
   const newScript: Omit<FirestoreScript, 'id'> = {
     ownerId,
     contentType,
-    title: data.title || (contentType === 'novel' ? '無題の小説' : '無題の脚本'),
+    title:
+      data.title ||
+      (contentType === 'novel'
+        ? '無題の小説'
+        : contentType === 'storyboard'
+          ? '無題の絵コンテ'
+          : '無題の脚本'),
     authorName: data.authorName || '',
     synopsis: '',
     content: '',
@@ -179,6 +193,10 @@ export async function updateScript(
       | 'worldbuilding'
       | 'novelCommentary'
       | 'novelDiscussion'
+      | 'storyboardContent'
+      | 'storyboardSettings'
+      | 'storyboardDiscussion'
+      | 'sourceScriptId'
     >
   >,
 ): Promise<void> {
@@ -257,6 +275,8 @@ export interface FeatureFlags {
   aiDiscussion: boolean;
   /** Novel mode UI (mode selection, novel editor, catalog novel filter). Data is retained when off. */
   novelMode: boolean;
+  /** Storyboard mode UI. Data is retained when off. */
+  storyboardMode: boolean;
 }
 
 const DEFAULT_FLAGS: FeatureFlags = {
@@ -267,6 +287,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   aiAdvice: true,
   aiDiscussion: true,
   novelMode: true,
+  storyboardMode: true,
 };
 
 export async function getFeatureFlags(): Promise<FeatureFlags> {

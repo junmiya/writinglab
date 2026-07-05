@@ -10,6 +10,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   aiAdvice: true,
   aiDiscussion: true,
   novelMode: true,
+  storyboardMode: true,
 };
 
 const FeatureFlagsContext = createContext<FeatureFlags>(DEFAULT_FLAGS);

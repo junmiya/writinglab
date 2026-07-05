@@ -26,7 +26,7 @@ export interface GuideMetrics {
   currentLines: number;
 }
 
-export type ContentType = 'screenplay' | 'novel';
+export type ContentType = 'screenplay' | 'novel' | 'storyboard';
 
 export interface EditorState {
   contentType: ContentType;
