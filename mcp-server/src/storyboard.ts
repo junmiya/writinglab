@@ -38,6 +38,35 @@ const CAMERA_WORK_LABELS: Record<CameraWork, string> = {
   OTHER: 'その他',
 };
 
+/** Natural-language shot-size descriptions for image-generation prompts. */
+const CAMERA_SIZE_DESC: Record<CameraSize, string> = {
+  ELS: '大ロング（被写体は小さく、環境・全景を大きく見せる）',
+  LS: 'ロングショット（全身と背景が入る）',
+  FS: 'フルショット（全身が画面いっぱい）',
+  KS: 'ニーショット（膝から上）',
+  WS: 'ウエストショット（腰から上）',
+  MS: 'ミディアムショット（胸から上）',
+  BS: 'バストショット（肩・胸から上）',
+  CU: 'クローズアップ（顔・表情中心）',
+  ECU: '大クローズアップ（目や口など細部）',
+};
+
+/** Natural-language camera-work descriptions for image-generation prompts. */
+const CAMERA_WORK_DESC: Record<CameraWork, string> = {
+  FIX: 'フィックス（カメラ固定）',
+  PAN_L: '左へパン',
+  PAN_R: '右へパン',
+  TILT_UP: '上へティルト',
+  TILT_DOWN: '下へティルト',
+  TU: 'トラックアップ（カメラが被写体へ前進）',
+  TB: 'トラックバック（カメラが被写体から後退）',
+  ZOOM_IN: 'ズームイン',
+  ZOOM_OUT: 'ズームアウト',
+  FOLLOW: 'フォロー（被写体を追う）',
+  HANDHELD: '手持ち（わずかな揺れ）',
+  OTHER: '',
+};
+
 export interface StoryboardCut {
   id: string;
   order: number;
@@ -97,6 +126,37 @@ export function formatCamera(cut: {
   return [size, work].filter(Boolean).join(' / ');
 }
 
+/**
+ * Descriptive camera direction for a generation prompt. Spells out shot size
+ * and camera work in natural language (vs {@link formatCamera}'s terse codes).
+ * For a size transition the still is framed at the start size.
+ */
+export function describeCamera(cut: {
+  cameraSizeStart?: CameraSize;
+  cameraSizeEnd?: CameraSize;
+  cameraWork?: CameraWork;
+}): string {
+  const startDesc = cut.cameraSizeStart ? CAMERA_SIZE_DESC[cut.cameraSizeStart] : '';
+  const endDesc =
+    cut.cameraSizeEnd && cut.cameraSizeEnd !== cut.cameraSizeStart
+      ? CAMERA_SIZE_DESC[cut.cameraSizeEnd]
+      : '';
+  const work = cut.cameraWork ? CAMERA_WORK_DESC[cut.cameraWork] : '';
+  const parts: string[] = [];
+  if (startDesc && endDesc) {
+    const move = work ? `${work}で寄り引き` : 'カメラを移動';
+    parts.push(
+      `ショットサイズは ${startDesc} から ${endDesc} へ（${move}。本フレームは開始サイズで作画）`,
+    );
+  } else if (startDesc) {
+    parts.push(`ショットサイズは ${startDesc}`);
+    if (work) parts.push(`カメラワークは ${work}`);
+  } else if (work) {
+    parts.push(`カメラワークは ${work}`);
+  }
+  return parts.join('、');
+}
+
 export const DEFAULT_IMAGE_STYLE =
   '絵コンテ用のモノクロ鉛筆ラフスケッチ。線画中心、簡潔な陰影、文字・ロゴ・フキダシは描かない。';
 
@@ -109,7 +169,7 @@ export function buildImagePrompt(
   aspect: FrameAspect,
   style: string = DEFAULT_IMAGE_STYLE,
 ): string {
-  const camera = formatCamera(cut);
+  const camera = describeCamera(cut);
   const parts = [
     style,
     `画面アスペクト比 ${aspect.w}:${aspect.h} の1フレーム。`,

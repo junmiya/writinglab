@@ -3,6 +3,7 @@ import {
   resolveFrameAspect,
   FRAME_ASPECT_PRESETS,
   formatCamera,
+  describeCamera,
   type FrameAspect,
 } from '../../src/types/storyboard';
 import {
@@ -51,6 +52,22 @@ describe('camera direction (FR-114)', () => {
     expect(formatCamera({})).toBe('');
   });
 
+  it('describeCamera spells out shot size and work in natural language', () => {
+    // 開始のみ
+    expect(describeCamera({ cameraSizeStart: 'CU' })).toBe(
+      'ショットサイズは クローズアップ（顔・表情中心）',
+    );
+    // 開始→終了＋ワーク（本フレームは開始サイズで作画）
+    const t = describeCamera({ cameraSizeStart: 'WS', cameraSizeEnd: 'MS', cameraWork: 'TU' });
+    expect(t).toContain('ウエストショット');
+    expect(t).toContain('ミディアムショット');
+    expect(t).toContain('トラックアップ');
+    expect(t).toContain('開始サイズで作画');
+    // ワークのみ
+    expect(describeCamera({ cameraWork: 'FIX' })).toBe('カメラワークは フィックス（カメラ固定）');
+    expect(describeCamera({})).toBe('');
+  });
+
   it('feeds camera info into storyboardToText for AI context', () => {
     let sc = addScene(createEmptyStoryboardContent(), '屋上', 'scn-1');
     sc = addCut(sc, 'scn-1', 'cut-a');
@@ -83,7 +100,11 @@ describe('image prompt + persistence policy (FR-115/117)', () => {
     );
     expect(prompt).toContain(DEFAULT_IMAGE_STYLE);
     expect(prompt).toContain('2.35:1');
-    expect(prompt).toContain('WS→MS');
+    // カメラは業界コードではなく自然言語の作画指示で反映される
+    expect(prompt).toContain('ウエストショット');
+    expect(prompt).toContain('ミディアムショット');
+    expect(prompt).toContain('トラックアップ');
+    expect(prompt).not.toContain('WS→MS');
     expect(prompt).toContain('フェンス越しロング');
     expect(prompt).toContain('少女が振り向く');
   });

@@ -69,6 +69,67 @@ export function formatCamera(cut: {
   return [size, work].filter(Boolean).join(' / ');
 }
 
+/** Natural-language descriptions of shot sizes for image-generation prompts. */
+export const CAMERA_SIZE_DESC: Record<CameraSize, string> = {
+  ELS: '大ロング（被写体は小さく、環境・全景を大きく見せる）',
+  LS: 'ロングショット（全身と背景が入る）',
+  FS: 'フルショット（全身が画面いっぱい）',
+  KS: 'ニーショット（膝から上）',
+  WS: 'ウエストショット（腰から上）',
+  MS: 'ミディアムショット（胸から上）',
+  BS: 'バストショット（肩・胸から上）',
+  CU: 'クローズアップ（顔・表情中心）',
+  ECU: '大クローズアップ（目や口など細部）',
+};
+
+/** Natural-language descriptions of camera work for image-generation prompts. */
+export const CAMERA_WORK_DESC: Record<CameraWork, string> = {
+  FIX: 'フィックス（カメラ固定）',
+  PAN_L: '左へパン',
+  PAN_R: '右へパン',
+  TILT_UP: '上へティルト',
+  TILT_DOWN: '下へティルト',
+  TU: 'トラックアップ（カメラが被写体へ前進）',
+  TB: 'トラックバック（カメラが被写体から後退）',
+  ZOOM_IN: 'ズームイン',
+  ZOOM_OUT: 'ズームアウト',
+  FOLLOW: 'フォロー（被写体を追う）',
+  HANDHELD: '手持ち（わずかな揺れ）',
+  OTHER: '',
+};
+
+/**
+ * Descriptive camera direction for a generation prompt (FR-115). Unlike
+ * {@link formatCamera} (terse codes for the UI), this spells out shot size and
+ * camera work in natural language a text-to-image model can act on. For a
+ * size transition the still is framed at the start size.
+ */
+export function describeCamera(cut: {
+  cameraSizeStart?: CameraSize | undefined;
+  cameraSizeEnd?: CameraSize | undefined;
+  cameraWork?: CameraWork | undefined;
+}): string {
+  const startDesc = cut.cameraSizeStart ? CAMERA_SIZE_DESC[cut.cameraSizeStart] : '';
+  const endDesc =
+    cut.cameraSizeEnd && cut.cameraSizeEnd !== cut.cameraSizeStart
+      ? CAMERA_SIZE_DESC[cut.cameraSizeEnd]
+      : '';
+  const work = cut.cameraWork ? CAMERA_WORK_DESC[cut.cameraWork] : '';
+  const parts: string[] = [];
+  if (startDesc && endDesc) {
+    const move = work ? `${work}で寄り引き` : 'カメラを移動';
+    parts.push(
+      `ショットサイズは ${startDesc} から ${endDesc} へ（${move}。本フレームは開始サイズで作画）`,
+    );
+  } else if (startDesc) {
+    parts.push(`ショットサイズは ${startDesc}`);
+    if (work) parts.push(`カメラワークは ${work}`);
+  } else if (work) {
+    parts.push(`カメラワークは ${work}`);
+  }
+  return parts.join('、');
+}
+
 // ── 画像（FR-115/116/117） ──
 
 export interface CutImageVersion {

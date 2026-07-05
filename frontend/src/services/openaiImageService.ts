@@ -1,5 +1,5 @@
 import type { FrameAspect, StoryboardCut } from '../types/storyboard';
-import { formatCamera } from '../types/storyboard';
+import { describeCamera } from '../types/storyboard';
 
 /**
  * OpenAI GPT Image client for storyboard frames (specs/003 FR-115/116).
@@ -58,7 +58,7 @@ export function buildImagePrompt(
   aspect: FrameAspect,
   style: string = DEFAULT_IMAGE_STYLE,
 ): string {
-  const camera = formatCamera(cut);
+  const camera = describeCamera(cut);
   const parts = [
     style,
     `画面アスペクト比 ${aspect.w}:${aspect.h} の1フレーム。`,
