@@ -63,6 +63,7 @@
 ### 5d. 画像の添付（FR-119・C案追補）
 
 - [x] T153 添付機能: `CutImageVersion.mime?` 追加、CutImagePanel に「添付」（ファイル選択 `image/*`）＋「貼り付け」（Clipboard API）ボタン（API キー不要で有効）。添付版は履歴に「添付: ファイル名」で追加され修正ループの起点になる。MIME を表示・編集 API・バックアップ往復で維持（ユニットテスト付き）
+- [x] T154 プロンプト提示: CutImagePanel に「プロンプト」ボタン（`buildImagePrompt` の表示・コピー）。定額プランで描く導線（コピー→ChatGPT→画像コピー→貼り付け）。カット行では絵欄の操作行と同じ位置
 
 ## Notes
 

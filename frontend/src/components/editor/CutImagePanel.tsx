@@ -1,5 +1,14 @@
 import { useRef, useState, type ReactElement } from 'react';
-import { Wand2, MessageSquare, Trash2, Check, Paperclip, Clipboard } from 'lucide-react';
+import {
+  Wand2,
+  MessageSquare,
+  Trash2,
+  Check,
+  Paperclip,
+  Clipboard,
+  FileText,
+  Copy,
+} from 'lucide-react';
 import type { CutImage, FrameAspect, StoryboardCut } from '../../types/storyboard';
 import {
   buildImagePrompt,
@@ -43,6 +52,7 @@ function emptyImage(): CutImage {
  */
 export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): ReactElement {
   const [open, setOpen] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -124,6 +134,18 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // 定額プランで描く用のプロンプト（API 経由と同一の組成, FR-119）
+  const copyPrompt = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(buildImagePrompt(cut, aspect));
+      setMessage(
+        'プロンプトをコピーしました。ChatGPT で生成→画像をコピー→「貼り付け」で取り込めます',
+      );
+    } catch {
+      setMessage('コピーできませんでした。下のテキストを選択してコピーしてください');
     }
   };
 
@@ -240,6 +262,19 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
         >
           <Clipboard size={12} /> 貼り付け
         </button>
+        <button
+          type="button"
+          onClick={() => setShowPrompt((v) => !v)}
+          title="この絵のプロンプトを表示・コピー（ChatGPT 等の定額プランで生成する用）"
+          style={{
+            fontSize: '0.6875rem',
+            padding: '0.2rem 0.5rem',
+            display: 'flex',
+            gap: '0.25rem',
+          }}
+        >
+          <FileText size={12} /> プロンプト
+        </button>
         <input
           ref={attachRef}
           type="file"
@@ -269,6 +304,55 @@ export function CutImagePanel({ cut, aspect, onPatch }: CutImagePanelProps): Rea
           <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>キー未設定</span>
         )}
       </div>
+
+      {/* 生成プロンプトの提示（定額プランで描く用, FR-119） */}
+      {showPrompt && (
+        <div
+          style={{
+            marginTop: '0.375rem',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '0.5rem',
+          }}
+        >
+          <textarea
+            readOnly
+            value={buildImagePrompt(cut, aspect)}
+            rows={4}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{
+              width: '100%',
+              fontSize: '0.75rem',
+              lineHeight: 1.5,
+              padding: '0.375rem',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              resize: 'vertical',
+              backgroundColor: 'var(--color-bg-secondary, #f8fafc)',
+            }}
+          />
+          <div
+            style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}
+          >
+            <button
+              type="button"
+              onClick={() => void copyPrompt()}
+              style={{
+                fontSize: '0.6875rem',
+                padding: '0.2rem 0.5rem',
+                display: 'flex',
+                gap: '0.25rem',
+              }}
+            >
+              <Copy size={12} /> コピー
+            </button>
+            <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>
+              ChatGPT に貼り付け→生成→画像をコピー→「貼り付け」で取り込み
+            </span>
+          </div>
+        </div>
+      )}
+
       {message && (
         <p
           style={{
