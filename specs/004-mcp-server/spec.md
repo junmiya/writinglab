@@ -1,6 +1,6 @@
 # Spec: ScenarioLab MCP サーバー（C案 Phase 1）
 
-**Status**: ドラフト（未承認・実装前にレビュー必須 / 憲章 I: Spec-Driven Delivery）
+**Status**: Phase 1a（読み取り専用 3 ツール）実装済み。書き込み（`attach_image`）は §5 の保存先決定待ちで Phase 1b。実装は `mcp-server/`（[tasks.md](./tasks.md)）
 **前提**: specs/003 FR-119（画像の添付）実装済み。C案（アプリファースト・個人利用から開始）。
 
 ## 1. 目的と経済性
