@@ -4,7 +4,7 @@ import type { EditorSettings } from '../stores/editorStore';
  * Content type discriminator for the mode registry.
  * Documents without an explicit value are treated as 'screenplay' (backward compatible).
  */
-export type ContentType = 'screenplay' | 'novel';
+export type ContentType = 'screenplay' | 'novel' | 'storyboard';
 
 /** A single toolbar insert action (柱/ト書き/セリフ or 章/節/会話/地の文). */
 export interface ToolbarActionDef {

@@ -9,6 +9,11 @@ import { NOVEL_STRUCTURE } from './novel/structure';
 import { NOVEL_PROMPTS } from './novel/prompts';
 import { NOVEL_EXPORT_PRESETS } from './novel/exportProfile';
 import { NOVEL_DEFAULT_SETTINGS } from './novel/defaults';
+import { STORYBOARD_TOOLBAR_ACTIONS } from './storyboard/toolbar';
+import { STORYBOARD_STRUCTURE } from './storyboard/structure';
+import { STORYBOARD_PROMPTS } from './storyboard/prompts';
+import { STORYBOARD_EXPORT_PRESETS } from './storyboard/exportProfile';
+import { STORYBOARD_DEFAULT_SETTINGS } from './storyboard/defaults';
 
 export type { ContentType, ModeProfile } from './types';
 
@@ -20,7 +25,8 @@ export const DEFAULT_CONTENT_TYPE: ContentType = 'screenplay';
  * Pre-migration documents have no `contentType` field and are treated as screenplay.
  */
 export function resolveContentType(value: string | undefined | null): ContentType {
-  return value === 'novel' ? 'novel' : 'screenplay';
+  if (value === 'novel' || value === 'storyboard') return value;
+  return 'screenplay';
 }
 
 const SCREENPLAY_PROFILE: ModeProfile = {
@@ -49,10 +55,24 @@ const NOVEL_PROFILE: ModeProfile = {
   },
 };
 
+const STORYBOARD_PROFILE: ModeProfile = {
+  contentType: 'storyboard',
+  label: '絵コンテ',
+  toolbar: STORYBOARD_TOOLBAR_ACTIONS,
+  structure: STORYBOARD_STRUCTURE,
+  prompts: STORYBOARD_PROMPTS,
+  exportPresets: STORYBOARD_EXPORT_PRESETS,
+  defaults: {
+    settings: STORYBOARD_DEFAULT_SETTINGS,
+    writingDirection: 'horizontal',
+  },
+};
+
 /** Mode registry: contentType → ModeProfile. */
 const MODE_REGISTRY: Partial<Record<ContentType, ModeProfile>> = {
   screenplay: SCREENPLAY_PROFILE,
   novel: NOVEL_PROFILE,
+  storyboard: STORYBOARD_PROFILE,
 };
 
 /** Resolve a mode profile by content type, falling back to screenplay. */

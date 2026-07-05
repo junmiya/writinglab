@@ -1,32 +1,40 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { callAi, type AiProvider } from '../../lib/aiClient';
-import { NOVEL_ADVICE_EXPERTS } from '../../modes/novel/prompts';
 
-interface NovelAdvicePanelProps {
-  /** Target label shown in the header (e.g. 'あらすじ' / '本文'). */
+export interface AdviceExpert {
+  id: string;
+  label: string;
+  system: string;
+}
+
+interface AiAdvicePanelProps {
+  /** Target label shown in the header (e.g. 'あらすじ' / '本文' / 'カット表'). */
   label: string;
   /** Text to evaluate. */
   text: string;
-  /** Optional worldbuilding/theme summary appended to the prompt for context. */
+  /** Experts rendered as tabs — one AI call per expert (mode-specific prompts). */
+  experts: AdviceExpert[];
+  /** Optional context summary appended to the prompt. */
   contextSummary?: string;
   /** The editor is passed as children so advice controls sit above and results below (上下). */
   children?: ReactNode;
 }
 
 /**
- * Novel AI advice (FR-029): 編集者 / 文芸評論家 / 校正者 evaluate あらすじ・本文.
- * Results are shown in a tabbed panel (one expert per tab) like scenario mode.
- * Controls render above the editor (children), the tabbed result below — "上下".
+ * Generic tabbed AI advice panel (FR-109). Mode-agnostic: novel passes
+ * 編集者/文芸評論家/校正者, storyboard passes 演出家/撮影/編集. Controls render
+ * above the editor (children), tabbed results below.
  */
-export function NovelAdvicePanel({
+export function AiAdvicePanel({
   label,
   text,
+  experts,
   contextSummary,
   children,
-}: NovelAdvicePanelProps): ReactElement {
+}: AiAdvicePanelProps): ReactElement {
   const [provider, setProvider] = useState<AiProvider>('gemini');
   const [results, setResults] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<string>(NOVEL_ADVICE_EXPERTS[0]!.id);
+  const [activeTab, setActiveTab] = useState<string>(experts[0]?.id ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,7 +50,7 @@ export function NovelAdvicePanel({
       .join('\n\n');
     try {
       const entries = await Promise.all(
-        NOVEL_ADVICE_EXPERTS.map(
+        experts.map(
           async (expert) => [expert.id, await callAi(provider, expert.system, userText)] as const,
         ),
       );
@@ -100,7 +108,6 @@ export function NovelAdvicePanel({
       {error && <p style={{ color: 'var(--color-error)', fontSize: '0.75rem' }}>{error}</p>}
       {hasResults && (
         <div style={{ marginTop: '0.5rem' }}>
-          {/* タブバー */}
           <div
             role="tablist"
             style={{
@@ -109,7 +116,7 @@ export function NovelAdvicePanel({
               borderBottom: '1px solid var(--color-border)',
             }}
           >
-            {NOVEL_ADVICE_EXPERTS.map((expert) => {
+            {experts.map((expert) => {
               const isActive = expert.id === activeTab;
               return (
                 <button
@@ -136,7 +143,6 @@ export function NovelAdvicePanel({
               );
             })}
           </div>
-          {/* 選択中タブの内容 */}
           <div
             role="tabpanel"
             style={{

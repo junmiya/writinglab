@@ -29,8 +29,13 @@ import {
   downloadTextFile,
   backupFilename,
 } from '../../services/novelBackupService';
-import { NovelAdvicePanel } from '../advice/NovelAdvicePanel';
-import { NovelDiscussionPanel } from '../advice/NovelDiscussionPanel';
+import { AiAdvicePanel } from '../advice/AiAdvicePanel';
+import { AiDiscussionPanel } from '../advice/AiDiscussionPanel';
+import {
+  NOVEL_ADVICE_EXPERTS,
+  NOVEL_DISCUSSION_A,
+  NOVEL_DISCUSSION_B,
+} from '../../modes/novel/prompts';
 
 interface NovelEditorProps {
   state: EditorState;
@@ -289,7 +294,12 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
       {/* ── あらすじ（AI評価を上下に, FR-029） ── */}
       <section className="section-container" aria-label="あらすじ">
         <h3>あらすじ</h3>
-        <NovelAdvicePanel label="あらすじ" text={state.synopsis} contextSummary={contextSummary}>
+        <AiAdvicePanel
+          label="あらすじ"
+          text={state.synopsis}
+          experts={NOVEL_ADVICE_EXPERTS}
+          contextSummary={contextSummary}
+        >
           <VerticalEditor
             value={state.synopsis}
             onChange={(value) => setState((current) => ({ ...current, synopsis: value }))}
@@ -297,7 +307,7 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
             charsPerColumn={lineLength}
             placeholder="あらすじを入力..."
           />
-        </NovelAdvicePanel>
+        </AiAdvicePanel>
       </section>
 
       {/* ── 章一覧 ── */}
@@ -340,7 +350,12 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
           </span>
         </div>
 
-        <NovelAdvicePanel label="本文" text={flatBody} contextSummary={contextSummary}>
+        <AiAdvicePanel
+          label="本文"
+          text={flatBody}
+          experts={NOVEL_ADVICE_EXPERTS}
+          contextSummary={contextSummary}
+        >
           {!activeChapter ? (
             <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
               章一覧から章（または節）を選ぶと本文を編集できます。章がなければ「章を追加」してください。
@@ -376,13 +391,15 @@ export function NovelEditor({ state, setState }: NovelEditorProps): ReactElement
               }}
             />
           )}
-        </NovelAdvicePanel>
+        </AiAdvicePanel>
       </section>
 
       {/* ── AI 対話批評（著者の相談・FR-030） ── */}
       <section className="section-container" aria-label="AI対話批評">
         <h3>AI対話批評</h3>
-        <NovelDiscussionPanel
+        <AiDiscussionPanel
+          roleA={NOVEL_DISCUSSION_A}
+          roleB={NOVEL_DISCUSSION_B}
           synopsis={state.synopsis}
           content={flatBody}
           messages={state.novelDiscussion ?? []}

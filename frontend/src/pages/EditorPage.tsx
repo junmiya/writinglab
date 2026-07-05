@@ -22,6 +22,7 @@ import { Settings } from '../components/editor/Settings';
 import { VerticalEditor, type EditorHandle } from '../components/editor/VerticalEditor';
 import { VerticalEditorV2 } from '../components/editor/VerticalEditorV2';
 import { NovelEditor } from '../components/editor/NovelEditor';
+import { StoryboardEditor } from '../components/editor/StoryboardEditor';
 
 // V2 エディタ切り替えフラグ（開発中: false = V1, true = V2）
 const USE_V2_EDITOR = true;
@@ -157,6 +158,16 @@ export function EditorPage(): ReactElement {
                   ...(script.novelDiscussion ? { novelDiscussion: script.novelDiscussion } : {}),
                 }
               : {}),
+            ...(contentType === 'storyboard'
+              ? {
+                  storyboardContent: script.storyboardContent ?? { scenes: [] },
+                  storyboardSettings: script.storyboardSettings ?? { paperFormat: 'anime' },
+                  ...(script.storyboardDiscussion
+                    ? { storyboardDiscussion: script.storyboardDiscussion }
+                    : {}),
+                  ...(script.sourceScriptId ? { sourceScriptId: script.sourceScriptId } : {}),
+                }
+              : {}),
           });
           if (script.contentCommentary) {
             setContentCommentaryCache(script.contentCommentary as ContentCommentaryCache);
@@ -197,6 +208,16 @@ export function EditorPage(): ReactElement {
               ...(state.novelSettings ? { novelSettings: state.novelSettings } : {}),
               ...(state.worldbuilding ? { worldbuilding: state.worldbuilding } : {}),
               ...(state.novelDiscussion ? { novelDiscussion: state.novelDiscussion } : {}),
+            }
+          : {}),
+        ...(state.contentType === 'storyboard'
+          ? {
+              ...(state.storyboardContent ? { storyboardContent: state.storyboardContent } : {}),
+              ...(state.storyboardSettings ? { storyboardSettings: state.storyboardSettings } : {}),
+              ...(state.storyboardDiscussion
+                ? { storyboardDiscussion: state.storyboardDiscussion }
+                : {}),
+              ...(state.sourceScriptId ? { sourceScriptId: state.sourceScriptId } : {}),
             }
           : {}),
       });
@@ -383,7 +404,13 @@ export function EditorPage(): ReactElement {
 
   return (
     <Layout
-      headerTitle={state.contentType === 'novel' ? '小説エディタ' : '脚本エディタ'}
+      headerTitle={
+        state.contentType === 'novel'
+          ? '小説エディタ'
+          : state.contentType === 'storyboard'
+            ? '絵コンテエディタ'
+            : '脚本エディタ'
+      }
       headerActions={
         <>
           <button
@@ -641,6 +668,11 @@ export function EditorPage(): ReactElement {
 
         {/* ── 小説モード本文（章立て＋設定資料） ── */}
         {state.contentType === 'novel' && <NovelEditor state={state} setState={setState} />}
+
+        {/* ── 絵コンテモード（シーン＋カット表） ── */}
+        {state.contentType === 'storyboard' && (
+          <StoryboardEditor state={state} setState={setState} />
+        )}
 
         {/* ── 脚本モード専用セクション ── */}
         {state.contentType === 'screenplay' && (
