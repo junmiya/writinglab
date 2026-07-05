@@ -35,6 +35,14 @@ import {
 } from '../../services/storyboardGenerateService';
 import { listScripts, type FirestoreScript } from '../../lib/firebase/firestoreService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRef } from 'react';
+import {
+  serializeStoryboardBackupJson,
+  parseStoryboardBackupJson,
+  buildStoryboardMarkdown,
+  downloadTextFile,
+  backupFilename,
+} from '../../services/storyboardBackupService';
 
 interface StoryboardEditorProps {
   state: EditorState;
@@ -69,6 +77,62 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
   const content = state.storyboardContent ?? createEmptyStoryboardContent();
   const settings = state.storyboardSettings ?? DEFAULT_STORYBOARD_SETTINGS;
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+
+  // ── バックアップ（FR-111） ──
+  const [backupMessage, setBackupMessage] = useState('');
+  const importRef = useRef<HTMLInputElement | null>(null);
+
+  const backupInput = () => ({
+    title: state.title,
+    authorName: state.authorName,
+    synopsis: state.synopsis,
+    storyboardContent: content,
+    storyboardSettings: settings,
+    ...(state.storyboardDiscussion ? { storyboardDiscussion: state.storyboardDiscussion } : {}),
+    ...(state.sourceScriptId ? { sourceScriptId: state.sourceScriptId } : {}),
+  });
+
+  const onExportJson = (): void => {
+    downloadTextFile(
+      backupFilename(state.title, 'json'),
+      serializeStoryboardBackupJson(backupInput()),
+      'application/json',
+    );
+    setBackupMessage('JSON バックアップを書き出しました');
+  };
+
+  const onExportMarkdown = (): void => {
+    downloadTextFile(
+      backupFilename(state.title, 'md'),
+      buildStoryboardMarkdown(backupInput()),
+      'text/markdown',
+    );
+    setBackupMessage('Markdown を書き出しました');
+  };
+
+  const onImportJson = async (file: File): Promise<void> => {
+    try {
+      const backup = parseStoryboardBackupJson(await file.text());
+      if (!confirm('現在の絵コンテを復元データで上書きします。よろしいですか？')) return;
+      setState((current) => ({
+        ...current,
+        contentType: 'storyboard',
+        title: backup.title,
+        authorName: backup.authorName,
+        synopsis: backup.synopsis,
+        storyboardContent: backup.storyboardContent,
+        storyboardSettings: backup.storyboardSettings,
+        ...(backup.storyboardDiscussion
+          ? { storyboardDiscussion: backup.storyboardDiscussion }
+          : {}),
+        ...(backup.sourceScriptId ? { sourceScriptId: backup.sourceScriptId } : {}),
+      }));
+      setActiveSceneId(null);
+      setBackupMessage('JSON から完全復元しました（保存で確定）');
+    } catch (error) {
+      setBackupMessage(`復元に失敗: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
 
   // ── 脚本→カット割り生成（FR-110） ──
   const [sourceScripts, setSourceScripts] = useState<FirestoreScript[] | null>(null);
@@ -464,6 +528,44 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
             setState((current) => ({ ...current, storyboardDiscussion: msgs }))
           }
         />
+      </section>
+
+      {/* ── バックアップ（JSON 完全復元 / Markdown 可読, FR-111） ── */}
+      <section className="section-container" aria-label="バックアップ">
+        <h3>バックアップ</h3>
+        <div
+          style={{
+            display: 'flex',
+            gap: 'var(--space-sm)',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
+          <button type="button" onClick={onExportJson}>
+            JSON バックアップ
+          </button>
+          <button type="button" onClick={() => importRef.current?.click()}>
+            JSON から復元
+          </button>
+          <button type="button" onClick={onExportMarkdown}>
+            Markdown 書き出し
+          </button>
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0];
+              if (file) void onImportJson(file);
+              e.currentTarget.value = '';
+            }}
+          />
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            JSON は完全復元用、Markdown は閲覧用
+          </span>
+        </div>
+        {backupMessage ? <p className="status-text">{backupMessage}</p> : null}
       </section>
     </>
   );
