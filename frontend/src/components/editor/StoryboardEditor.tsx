@@ -21,7 +21,20 @@ import {
   type StoryboardCut,
   type StoryboardSettings,
 } from '../../types/storyboard';
-import { ChevronUp, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Trash2, Wand2 } from 'lucide-react';
+import { AiAdvicePanel } from '../advice/AiAdvicePanel';
+import { AiDiscussionPanel } from '../advice/AiDiscussionPanel';
+import {
+  STORYBOARD_ADVICE_EXPERTS,
+  STORYBOARD_DISCUSSION_A,
+  STORYBOARD_DISCUSSION_B,
+} from '../../modes/storyboard/prompts';
+import {
+  generateStoryboardFromScript,
+  storyboardToText,
+} from '../../services/storyboardGenerateService';
+import { listScripts, type FirestoreScript } from '../../lib/firebase/firestoreService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface StoryboardEditorProps {
   state: EditorState;
@@ -52,9 +65,60 @@ const th: React.CSSProperties = {
  * cards. Isolated from screenplay/novel paths (no regression).
  */
 export function StoryboardEditor({ state, setState }: StoryboardEditorProps): ReactElement {
+  const { user } = useAuth();
   const content = state.storyboardContent ?? createEmptyStoryboardContent();
   const settings = state.storyboardSettings ?? DEFAULT_STORYBOARD_SETTINGS;
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
+
+  // ── 脚本→カット割り生成（FR-110） ──
+  const [sourceScripts, setSourceScripts] = useState<FirestoreScript[] | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [generateMessage, setGenerateMessage] = useState('');
+
+  const loadSourceScripts = async (): Promise<void> => {
+    if (!user || sourceScripts !== null) return;
+    try {
+      const all = await listScripts(user.uid);
+      setSourceScripts(all.filter((s) => (s.contentType ?? 'screenplay') === 'screenplay'));
+    } catch {
+      setGenerateMessage('脚本一覧の取得に失敗しました');
+      setSourceScripts([]);
+    }
+  };
+
+  const onGenerate = async (): Promise<void> => {
+    const source = sourceScripts?.find((s) => s.id === selectedSourceId);
+    if (!source) return;
+    if (
+      storyboardCutCount(content) > 0 &&
+      !confirm('既存のカット表を生成結果で上書きします。よろしいですか？')
+    ) {
+      return;
+    }
+    setGenerating(true);
+    setGenerateMessage('');
+    try {
+      const generated = await generateStoryboardFromScript('gemini', {
+        synopsis: source.synopsis ?? '',
+        content: source.content ?? '',
+      });
+      setState((current) => ({
+        ...current,
+        storyboardContent: generated,
+        sourceScriptId: source.id,
+      }));
+      setActiveSceneId(null);
+      setGenerateMessage(
+        `「${source.title}」から ${generated.scenes.length} シーンを生成しました（保存で確定）`,
+      );
+    } catch (error) {
+      // Parse failures never touch existing data (SC-103).
+      setGenerateMessage(`生成に失敗: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const setContent = (next: StoryboardContent): void => {
     setState((current) => ({ ...current, storyboardContent: next }));
@@ -157,6 +221,53 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         </div>
       </section>
 
+      {/* ── 脚本からカット割り生成（FR-110） ── */}
+      <section className="section-container" aria-label="脚本からカット割り生成">
+        <h3>脚本からカット割り生成</h3>
+        <div
+          style={{
+            display: 'flex',
+            gap: 'var(--space-sm)',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <select
+            value={selectedSourceId}
+            onFocus={() => void loadSourceScripts()}
+            onChange={(e) => setSelectedSourceId(e.currentTarget.value)}
+            style={{ fontSize: '0.8125rem', padding: '0.3rem 0.5rem', minWidth: '16rem' }}
+          >
+            <option value="">
+              {sourceScripts === null
+                ? '脚本を選択（クリックで読み込み）...'
+                : sourceScripts.length === 0
+                  ? '脚本がありません'
+                  : '脚本を選択...'}
+            </option>
+            {(sourceScripts ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title || '(無題)'}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => void onGenerate()}
+            disabled={generating || !selectedSourceId}
+            style={{ display: 'flex', gap: '0.25rem', fontSize: '0.8125rem' }}
+          >
+            <Wand2 size={14} />
+            {generating ? '生成中...' : 'AI でカット割り生成'}
+          </button>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            柱・ト書き・セリフからシーン／カットを自動作成します
+          </span>
+        </div>
+        {generateMessage ? <p className="status-text">{generateMessage}</p> : null}
+      </section>
+
       {/* ── シーン一覧 ── */}
       <SceneList
         content={content}
@@ -199,139 +310,160 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
           </label>
         )}
 
-        {!activeScene ? (
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            シーンを追加（または選択）するとカット表を編集できます。
-          </p>
-        ) : activeCuts.length === 0 ? (
-          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-            カットがありません。「カットを追加」してください。
-          </p>
-        ) : settings.paperFormat === 'anime' ? (
-          /* アニメ式: 5欄テーブル */
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th style={{ ...th, width: '4.5rem' }}>カット</th>
-                <th style={th}>画面（構図・カメラ）</th>
-                <th style={th}>内容（アクション）</th>
-                <th style={th}>セリフ／音</th>
-                <th style={{ ...th, width: '5rem' }}>秒数</th>
-                <th style={{ ...th, width: '6rem' }} />
-              </tr>
-            </thead>
-            <tbody>
+        <AiAdvicePanel
+          label="カット表"
+          text={storyboardToText(content)}
+          experts={STORYBOARD_ADVICE_EXPERTS}
+        >
+          {!activeScene ? (
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              シーンを追加（または選択）するとカット表を編集できます。
+            </p>
+          ) : activeCuts.length === 0 ? (
+            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              カットがありません。「カットを追加」してください。
+            </p>
+          ) : settings.paperFormat === 'anime' ? (
+            /* アニメ式: 5欄テーブル */
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ ...th, width: '4.5rem' }}>カット</th>
+                  <th style={th}>画面（構図・カメラ）</th>
+                  <th style={th}>内容（アクション）</th>
+                  <th style={th}>セリフ／音</th>
+                  <th style={{ ...th, width: '5rem' }}>秒数</th>
+                  <th style={{ ...th, width: '6rem' }} />
+                </tr>
+              </thead>
+              <tbody>
+                {activeCuts.map((cut, index) => (
+                  <tr key={cut.id} style={{ verticalAlign: 'top' }}>
+                    <td>
+                      <input
+                        value={cut.cutNumber}
+                        onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
+                        style={{ ...cellInput, width: '4rem' }}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        value={cut.picture}
+                        onChange={(e) => patchCut(cut.id, { picture: e.currentTarget.value })}
+                        placeholder="例: 屋上フェンス越しロング、PAN右"
+                        rows={2}
+                        style={cellArea}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        value={cut.action}
+                        onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
+                        placeholder="芝居・動き・演出指示"
+                        rows={2}
+                        style={cellArea}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        value={cut.dialogue}
+                        onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
+                        placeholder="セリフ／SE・音楽"
+                        rows={2}
+                        style={cellArea}
+                      />
+                    </td>
+                    <td>{timeInput(cut)}</td>
+                    <td>{cutRowControls(cut, index)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            /* 映画式: フレーム主体カード */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {activeCuts.map((cut, index) => (
-                <tr key={cut.id} style={{ verticalAlign: 'top' }}>
-                  <td>
+                <div
+                  key={cut.id}
+                  style={{
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.75rem',
+                    backgroundColor: 'var(--color-surface)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
                     <input
                       value={cut.cutNumber}
                       onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
-                      style={{ ...cellInput, width: '4rem' }}
+                      style={{ ...cellInput, width: '5rem', fontWeight: 700 }}
                     />
-                  </td>
-                  <td>
-                    <textarea
-                      value={cut.picture}
-                      onChange={(e) => patchCut(cut.id, { picture: e.currentTarget.value })}
-                      placeholder="例: 屋上フェンス越しロング、PAN右"
-                      rows={2}
-                      style={cellArea}
-                    />
-                  </td>
-                  <td>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {timeInput(cut)}
+                      {cutRowControls(cut, index)}
+                    </div>
+                  </div>
+                  {/* フレーム（画面描写）を大きく */}
+                  <textarea
+                    value={cut.picture}
+                    onChange={(e) => patchCut(cut.id, { picture: e.currentTarget.value })}
+                    placeholder="フレーム: 構図・カメラワークを大きく記述（16:9 を想定）"
+                    rows={4}
+                    style={{
+                      ...cellArea,
+                      minHeight: '6rem',
+                      backgroundColor: 'var(--color-bg-secondary, #f8fafc)',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <textarea
                       value={cut.action}
                       onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
-                      placeholder="芝居・動き・演出指示"
+                      placeholder="内容（アクション）"
                       rows={2}
-                      style={cellArea}
+                      style={{ ...cellArea, flex: 1 }}
                     />
-                  </td>
-                  <td>
                     <textarea
                       value={cut.dialogue}
                       onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
-                      placeholder="セリフ／SE・音楽"
+                      placeholder="セリフ／音"
                       rows={2}
-                      style={cellArea}
+                      style={{ ...cellArea, flex: 1 }}
                     />
-                  </td>
-                  <td>{timeInput(cut)}</td>
-                  <td>{cutRowControls(cut, index)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          /* 映画式: フレーム主体カード */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {activeCuts.map((cut, index) => (
-              <div
-                key={cut.id}
-                style={{
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '0.75rem',
-                  backgroundColor: 'var(--color-surface)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  <input
-                    value={cut.cutNumber}
-                    onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
-                    style={{ ...cellInput, width: '5rem', fontWeight: 700 }}
-                  />
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    {timeInput(cut)}
-                    {cutRowControls(cut, index)}
                   </div>
                 </div>
-                {/* フレーム（画面描写）を大きく */}
-                <textarea
-                  value={cut.picture}
-                  onChange={(e) => patchCut(cut.id, { picture: e.currentTarget.value })}
-                  placeholder="フレーム: 構図・カメラワークを大きく記述（16:9 を想定）"
-                  rows={4}
-                  style={{
-                    ...cellArea,
-                    minHeight: '6rem',
-                    backgroundColor: 'var(--color-bg-secondary, #f8fafc)',
-                  }}
-                />
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <textarea
-                    value={cut.action}
-                    onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
-                    placeholder="内容（アクション）"
-                    rows={2}
-                    style={{ ...cellArea, flex: 1 }}
-                  />
-                  <textarea
-                    value={cut.dialogue}
-                    onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
-                    placeholder="セリフ／音"
-                    rows={2}
-                    style={{ ...cellArea, flex: 1 }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </AiAdvicePanel>
 
         {/* 合計（FR-105） */}
         <p className="status-text" style={{ marginTop: 'var(--space-sm)' }}>
           合計: {storyboardCutCount(content)}カット ／ 合計尺:{' '}
           {formatDuration(storyboardTotalSec(content))}
         </p>
+      </section>
+
+      {/* ── AI 対話批評（監督 vs 編集技師, FR-108） ── */}
+      <section className="section-container" aria-label="AI対話批評">
+        <h3>AI対話批評</h3>
+        <AiDiscussionPanel
+          roleA={STORYBOARD_DISCUSSION_A}
+          roleB={STORYBOARD_DISCUSSION_B}
+          synopsis={state.synopsis}
+          content={storyboardToText(content)}
+          messages={state.storyboardDiscussion ?? []}
+          onMessagesChange={(msgs) =>
+            setState((current) => ({ ...current, storyboardDiscussion: msgs }))
+          }
+        />
       </section>
     </>
   );
