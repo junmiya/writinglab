@@ -13,6 +13,13 @@ import {
   createEmptyNovelContent,
   createEmptyWorldbuilding,
 } from '../types/novel';
+import type {
+  StoryboardContent,
+  StoryboardCut,
+  StoryboardScene,
+  StoryboardSettings,
+} from '../types/storyboard';
+import { DEFAULT_STORYBOARD_SETTINGS, createEmptyStoryboardContent } from '../types/storyboard';
 
 export interface EditorSettings {
   lineLength: number;
@@ -46,6 +53,11 @@ export interface EditorState {
   novelSettings?: NovelSettings;
   worldbuilding?: Worldbuilding;
   novelDiscussion?: NovelDiscussionMessage[];
+  // ── Storyboard mode (contentType === 'storyboard'). Undefined otherwise. ──
+  storyboardContent?: StoryboardContent;
+  storyboardSettings?: StoryboardSettings;
+  storyboardDiscussion?: NovelDiscussionMessage[];
+  sourceScriptId?: string;
 }
 
 export const DEFAULT_SETTINGS: EditorSettings = {
@@ -123,6 +135,12 @@ export function createInitialEditorState(contentType: ContentType = 'screenplay'
           novelContent: createEmptyNovelContent(),
           novelSettings: { ...DEFAULT_NOVEL_SETTINGS },
           worldbuilding: createEmptyWorldbuilding(),
+        }
+      : {}),
+    ...(contentType === 'storyboard'
+      ? {
+          storyboardContent: createEmptyStoryboardContent(),
+          storyboardSettings: { ...DEFAULT_STORYBOARD_SETTINGS },
         }
       : {}),
   };
@@ -359,4 +377,159 @@ export function updateGlossaryEntry(
 
 export function removeGlossaryEntry(wb: Worldbuilding, id: string): Worldbuilding {
   return { ...wb, glossary: wb.glossary.filter((g) => g.id !== id) };
+}
+
+// ────────────────────────────────────────
+// 絵コンテモード: シーン・カット CRUD（StoryboardContent に対する純粋関数）
+// 階層は「シーン > カット」の 2 階層固定。カット番号は全体通しで自動採番（編集可）。
+// ────────────────────────────────────────
+
+/** Renumber cutNumber across all scenes as C-1, C-2… in scene/cut order (FR-102). */
+export function renumberCuts(sc: StoryboardContent): StoryboardContent {
+  let n = 0;
+  return {
+    ...sc,
+    scenes: [...sc.scenes]
+      .sort((a, b) => a.order - b.order)
+      .map((scene, sceneIndex) => ({
+        ...scene,
+        order: sceneIndex,
+        cuts: [...scene.cuts]
+          .sort((a, b) => a.order - b.order)
+          .map((cut, cutIndex) => {
+            n += 1;
+            return { ...cut, order: cutIndex, cutNumber: `C-${n}` };
+          }),
+      })),
+  };
+}
+
+export function addScene(
+  sc: StoryboardContent,
+  title = '',
+  id: string = genNovelId('scn'),
+): StoryboardContent {
+  const scene: StoryboardScene = { id, title, order: sc.scenes.length, cuts: [] };
+  return { ...sc, scenes: [...sc.scenes, scene] };
+}
+
+export function updateScene(
+  sc: StoryboardContent,
+  sceneId: string,
+  patch: Partial<Pick<StoryboardScene, 'title'>>,
+): StoryboardContent {
+  return {
+    ...sc,
+    scenes: sc.scenes.map((s) => (s.id === sceneId ? { ...s, ...patch } : s)),
+  };
+}
+
+export function removeScene(sc: StoryboardContent, sceneId: string): StoryboardContent {
+  return renumberCuts({ ...sc, scenes: sc.scenes.filter((s) => s.id !== sceneId) });
+}
+
+/** Move a scene by one position. No-op at the boundary. */
+export function moveScene(
+  sc: StoryboardContent,
+  sceneId: string,
+  direction: -1 | 1,
+): StoryboardContent {
+  const sorted = [...sc.scenes].sort((a, b) => a.order - b.order);
+  const i = sorted.findIndex((s) => s.id === sceneId);
+  const j = i + direction;
+  if (i < 0 || j < 0 || j >= sorted.length) return sc;
+  [sorted[i], sorted[j]] = [sorted[j]!, sorted[i]!];
+  return renumberCuts({ ...sc, scenes: sorted.map((s, idx) => ({ ...s, order: idx })) });
+}
+
+export function addCut(
+  sc: StoryboardContent,
+  sceneId: string,
+  id: string = genNovelId('cut'),
+): StoryboardContent {
+  const next = {
+    ...sc,
+    scenes: sc.scenes.map((s) => {
+      if (s.id !== sceneId) return s;
+      const cut: StoryboardCut = {
+        id,
+        order: s.cuts.length,
+        cutNumber: '',
+        picture: '',
+        action: '',
+        dialogue: '',
+        timeSec: null,
+      };
+      return { ...s, cuts: [...s.cuts, cut] };
+    }),
+  };
+  return renumberCuts(next);
+}
+
+export function updateCut(
+  sc: StoryboardContent,
+  sceneId: string,
+  cutId: string,
+  patch: Partial<Pick<StoryboardCut, 'cutNumber' | 'picture' | 'action' | 'dialogue' | 'timeSec'>>,
+): StoryboardContent {
+  return {
+    ...sc,
+    scenes: sc.scenes.map((s) => {
+      if (s.id !== sceneId) return s;
+      return { ...s, cuts: s.cuts.map((c) => (c.id === cutId ? { ...c, ...patch } : c)) };
+    }),
+  };
+}
+
+export function removeCut(
+  sc: StoryboardContent,
+  sceneId: string,
+  cutId: string,
+): StoryboardContent {
+  const next = {
+    ...sc,
+    scenes: sc.scenes.map((s) =>
+      s.id === sceneId ? { ...s, cuts: s.cuts.filter((c) => c.id !== cutId) } : s,
+    ),
+  };
+  return renumberCuts(next);
+}
+
+/** Move a cut within its scene by one position. No-op at the boundary. */
+export function moveCut(
+  sc: StoryboardContent,
+  sceneId: string,
+  cutId: string,
+  direction: -1 | 1,
+): StoryboardContent {
+  const next = {
+    ...sc,
+    scenes: sc.scenes.map((s) => {
+      if (s.id !== sceneId) return s;
+      const sorted = [...s.cuts].sort((a, b) => a.order - b.order);
+      const i = sorted.findIndex((c) => c.id === cutId);
+      const j = i + direction;
+      if (i < 0 || j < 0 || j >= sorted.length) return s;
+      [sorted[i], sorted[j]] = [sorted[j]!, sorted[i]!];
+      return { ...s, cuts: sorted.map((c, idx) => ({ ...c, order: idx })) };
+    }),
+  };
+  return renumberCuts(next);
+}
+
+/** Total cut count across all scenes. */
+export function storyboardCutCount(sc: StoryboardContent): number {
+  return sc.scenes.reduce((sum, s) => sum + s.cuts.length, 0);
+}
+
+/** Total duration in seconds (null timeSec counts as 0, FR-105). */
+export function storyboardTotalSec(sc: StoryboardContent): number {
+  return sc.scenes.reduce((sum, s) => sum + s.cuts.reduce((cs, c) => cs + (c.timeSec ?? 0), 0), 0);
+}
+
+/** Format seconds as m:ss for the 合計尺 display. */
+export function formatDuration(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = Math.round(totalSec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
 }

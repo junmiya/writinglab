@@ -66,9 +66,9 @@ export function CatalogPage(): ReactElement {
     }
   };
 
-  // Novel mode on → ask which mode; off → keep legacy single-click screenplay create.
+  // Any extra mode on → ask which mode; all off → legacy single-click screenplay create.
   const onNewClick = (): void => {
-    if (flags.novelMode) {
+    if (flags.novelMode || flags.storyboardMode) {
       setShowModeModal(true);
     } else {
       void handleCreate('screenplay');
@@ -378,18 +378,20 @@ export function CatalogPage(): ReactElement {
                     柱・ト書き・セリフ／縦書き
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleCreate('novel')}
-                  disabled={creating}
-                  style={modeButtonStyle}
-                >
-                  <FileText size={24} />
-                  <span style={{ fontWeight: 600 }}>小説</span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
-                    章立て・設定資料／縦書き
-                  </span>
-                </button>
+                {flags.novelMode && (
+                  <button
+                    type="button"
+                    onClick={() => void handleCreate('novel')}
+                    disabled={creating}
+                    style={modeButtonStyle}
+                  >
+                    <FileText size={24} />
+                    <span style={{ fontWeight: 600 }}>小説</span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                      章立て・設定資料／縦書き
+                    </span>
+                  </button>
+                )}
                 {flags.storyboardMode && (
                   <button
                     type="button"
