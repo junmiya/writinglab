@@ -34,7 +34,7 @@
 - [x] T130 `frontend/src/services/storyboardBackupService.ts`: JSON v1（完全復元）＋Markdown（シーン見出し＋カット表）（FR-111）
 - [x] T131 StoryboardEditor にバックアップ UI（3ボタン）
 - [x] T132 [P] バックアップ往復テスト
-- [ ] T133 検証一式（typecheck/lint/test/build）＋手動 quickstart＋PR ready→マージ
+- [x] T133 検証一式（typecheck/lint/test/build）＋手動 quickstart＋PR ready→マージ
 
 ## Phase 5: 画面再設計＋カメラ指示＋画像生成（Session 4・US6）
 
