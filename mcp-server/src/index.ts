@@ -245,6 +245,7 @@ promptDraft は 構図メモ＋カメラ指示＋アスペクト比＋スタイ�
         dialogue: z.string(),
         camera: z.string(),
         aspect: z.object({ w: z.number(), h: z.number() }),
+        characters: z.array(z.object({ name: z.string(), description: z.string() })),
         style: z.string(),
         promptDraft: z.string(),
       },
@@ -285,6 +286,10 @@ promptDraft は 構図メモ＋カメラ指示＋アスペクト比＋スタイ�
         }
         const { scene, cut } = found;
         const aspect = resolveFrameAspect(script.storyboardSettings?.frameAspect);
+        const allChars = script.storyboardContent.characters ?? [];
+        const refChars = allChars
+          .filter((c) => cut.characterIds?.includes(c.id))
+          .map((c) => ({ name: c.name, description: c.description }));
         const structured = {
           scriptId: script.id,
           sceneId: scene.id,
@@ -296,8 +301,9 @@ promptDraft は 構図メモ＋カメラ指示＋アスペクト比＋スタイ�
           dialogue: cut.dialogue ?? '',
           camera: formatCamera(cut),
           aspect: { w: aspect.w, h: aspect.h },
+          characters: refChars,
           style: DEFAULT_IMAGE_STYLE,
-          promptDraft: buildImagePrompt(cut, aspect),
+          promptDraft: buildImagePrompt(cut, aspect, DEFAULT_IMAGE_STYLE, refChars),
         };
         const text =
           response_format === 'json'
@@ -310,11 +316,16 @@ promptDraft は 構図メモ＋カメラ指示＋アスペクト比＋スタイ�
                 `- 構図: ${structured.picture || '(未入力)'}`,
                 `- 内容: ${structured.action || '(未入力)'}`,
                 `- セリフ/音: ${structured.dialogue || '(なし)'}`,
+                refChars.length
+                  ? `- 登場人物: ${refChars.map((c) => (c.description ? `${c.name}（${c.description}）` : c.name)).join('、')}`
+                  : null,
                 '',
                 '## 生成プロンプト（そのまま画像生成に使える）',
                 '',
                 structured.promptDraft,
-              ].join('\n');
+              ]
+                .filter((l): l is string => l !== null)
+                .join('\n');
         return { content: [{ type: 'text', text }], structuredContent: structured };
       } catch (error) {
         return { content: [{ type: 'text', text: errorText(error) }], isError: true };

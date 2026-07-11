@@ -78,6 +78,7 @@ export interface StoryboardCut {
   cameraSizeStart?: CameraSize;
   cameraSizeEnd?: CameraSize;
   cameraWork?: CameraWork;
+  characterIds?: string[];
 }
 
 export interface StoryboardScene {
@@ -87,8 +88,21 @@ export interface StoryboardScene {
   cuts: StoryboardCut[];
 }
 
+/** Character name + 容姿 (images are stripped from Firestore, so only text). */
+export interface StoryboardCharacter {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface StoryboardContent {
   scenes: StoryboardScene[];
+  characters?: StoryboardCharacter[];
+}
+
+export interface CharacterRef {
+  name: string;
+  description: string;
 }
 
 export interface FrameAspect {
@@ -160,7 +174,7 @@ export function describeCamera(cut: {
 export const DEFAULT_IMAGE_STYLE =
   '絵コンテ用のモノクロ鉛筆ラフスケッチ。線画中心、簡潔な陰影、文字・ロゴ・フキダシは描かない。';
 
-/** Compose the image-generation prompt from 構図メモ + カメラ指示 + aspect + style. */
+/** Compose the image-generation prompt from 構図メモ + カメラ指示 + aspect + style + 登場人物. */
 export function buildImagePrompt(
   cut: Pick<
     StoryboardCut,
@@ -168,14 +182,22 @@ export function buildImagePrompt(
   >,
   aspect: FrameAspect,
   style: string = DEFAULT_IMAGE_STYLE,
+  characters: CharacterRef[] = [],
 ): string {
   const camera = describeCamera(cut);
+  const named = characters.filter((c) => c.name.trim() || c.description.trim());
+  const charLine = named.length
+    ? `登場人物: ${named
+        .map((c) => (c.description.trim() ? `${c.name}（${c.description.trim()}）` : c.name))
+        .join('、')}。参照画像の見た目・服装を保つこと。`
+    : '';
   const parts = [
     style,
     `画面アスペクト比 ${aspect.w}:${aspect.h} の1フレーム。`,
     camera ? `カメラ: ${camera}。` : '',
     cut.picture.trim() ? `構図: ${cut.picture.trim()}` : '',
     cut.action.trim() ? `動き・芝居: ${cut.action.trim()}` : '',
+    charLine,
   ];
   return parts.filter(Boolean).join('\n');
 }

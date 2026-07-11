@@ -18,6 +18,7 @@ import type {
   StoryboardCut,
   StoryboardScene,
   StoryboardSettings,
+  StoryboardCharacter,
 } from '../types/storyboard';
 import { DEFAULT_STORYBOARD_SETTINGS, createEmptyStoryboardContent } from '../types/storyboard';
 
@@ -482,6 +483,7 @@ export function updateCut(
       | 'cameraSizeEnd'
       | 'cameraWork'
       | 'image'
+      | 'characterIds'
     >
   >,
 ): StoryboardContent {
@@ -573,5 +575,103 @@ export function stripStoryboardImages(sc: StoryboardContent): StoryboardContent 
         return rest;
       }),
     })),
+    ...(sc.characters
+      ? {
+          characters: sc.characters.map((ch) => {
+            if (!ch.image) return ch;
+            const { image: _image, ...rest } = ch;
+            return rest;
+          }),
+        }
+      : {}),
+  };
+}
+
+// ── 登場人物 CRUD（005 / FR-201） ──
+
+export function addCharacter(
+  sc: StoryboardContent,
+  name = '',
+  id: string = genNovelId('chr'),
+): StoryboardContent {
+  const character: StoryboardCharacter = { id, name, description: '' };
+  return { ...sc, characters: [...(sc.characters ?? []), character] };
+}
+
+export function updateCharacter(
+  sc: StoryboardContent,
+  characterId: string,
+  patch: Partial<Pick<StoryboardCharacter, 'name' | 'description' | 'image'>>,
+): StoryboardContent {
+  return {
+    ...sc,
+    characters: (sc.characters ?? []).map((ch) => {
+      if (ch.id !== characterId) return ch;
+      const merged = { ...ch, ...patch } as StoryboardCharacter;
+      for (const key of Object.keys(merged) as (keyof StoryboardCharacter)[]) {
+        if (merged[key] === undefined) delete merged[key];
+      }
+      return merged;
+    }),
+  };
+}
+
+export function removeCharacter(sc: StoryboardContent, characterId: string): StoryboardContent {
+  return {
+    ...sc,
+    characters: (sc.characters ?? []).filter((ch) => ch.id !== characterId),
+    // Unlink from any cut that referenced it.
+    scenes: sc.scenes.map((scene) => ({
+      ...scene,
+      cuts: scene.cuts.map((cut) =>
+        cut.characterIds?.includes(characterId)
+          ? { ...cut, characterIds: cut.characterIds.filter((id) => id !== characterId) }
+          : cut,
+      ),
+    })),
+  };
+}
+
+export function moveCharacter(
+  sc: StoryboardContent,
+  characterId: string,
+  direction: -1 | 1,
+): StoryboardContent {
+  const list = [...(sc.characters ?? [])];
+  const idx = list.findIndex((c) => c.id === characterId);
+  if (idx < 0) return sc;
+  const j = idx + direction;
+  if (j < 0 || j >= list.length) return sc;
+  const a = list[idx];
+  const b = list[j];
+  if (!a || !b) return sc;
+  list[idx] = b;
+  list[j] = a;
+  return { ...sc, characters: list };
+}
+
+/** Toggle a character's presence in a cut (FR-205). */
+export function toggleCutCharacter(
+  sc: StoryboardContent,
+  sceneId: string,
+  cutId: string,
+  characterId: string,
+): StoryboardContent {
+  return {
+    ...sc,
+    scenes: sc.scenes.map((s) => {
+      if (s.id !== sceneId) return s;
+      return {
+        ...s,
+        cuts: s.cuts.map((c) => {
+          if (c.id !== cutId) return c;
+          const ids = c.characterIds ?? [];
+          const next = ids.includes(characterId)
+            ? ids.filter((id) => id !== characterId)
+            : [...ids, characterId];
+          return { ...c, characterIds: next };
+        }),
+      };
+    }),
   };
 }

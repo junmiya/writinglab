@@ -158,6 +158,22 @@ export interface CutImage {
   chat: CutImageMessage[];
 }
 
+// ── 登場人物（005 / FR-201） ──
+
+/**
+ * A storyboard character with an optional reference image. Reuses {@link CutImage}
+ * so name/description drive the same generate/attach/paste/prompt studio as cuts.
+ * The image is NOT persisted to Firestore (FR-203) — it travels via JSON backup.
+ */
+export interface StoryboardCharacter {
+  id: string;
+  /** 表示名（プロンプトで人物を参照する識別子にもなる）。 */
+  name: string;
+  /** 容姿・特徴（作画プロンプト生成に使う）。 */
+  description: string;
+  image?: CutImage | undefined;
+}
+
 // ── カット・シーン ──
 
 /** One cut (frame) in a scene. */
@@ -180,6 +196,8 @@ export interface StoryboardCut {
   cameraSizeEnd?: CameraSize | undefined;
   cameraWork?: CameraWork | undefined;
   image?: CutImage | undefined;
+  /** IDs of characters appearing in this cut, whose images seed generation (FR-205). */
+  characterIds?: string[] | undefined;
 }
 
 export interface StoryboardScene {
@@ -191,6 +209,8 @@ export interface StoryboardScene {
 
 export interface StoryboardContent {
   scenes: StoryboardScene[];
+  /** Character list with reference images (005 / FR-201). Optional for back-compat. */
+  characters?: StoryboardCharacter[];
 }
 
 // ── 設定（FR-104/FR-113） ──

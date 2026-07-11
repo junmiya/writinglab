@@ -1,6 +1,7 @@
 import { useRef, useState, type Dispatch, type ReactElement, type SetStateAction } from 'react';
 import { SceneList } from './SceneList';
 import { CutImagePanel } from './CutImagePanel';
+import { CharacterPanel } from './CharacterPanel';
 import {
   type EditorState,
   addScene,
@@ -11,6 +12,11 @@ import {
   updateCut,
   removeCut,
   moveCut,
+  addCharacter,
+  updateCharacter,
+  removeCharacter,
+  moveCharacter,
+  toggleCutCharacter,
   storyboardCutCount,
   storyboardTotalSec,
   formatDuration,
@@ -27,9 +33,10 @@ import {
   type CameraWork,
   type StoryboardContent,
   type StoryboardCut,
+  type StoryboardCharacter,
   type StoryboardSettings,
 } from '../../types/storyboard';
-import { ChevronUp, ChevronDown, Plus, Trash2, Wand2, Camera } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Trash2, Wand2, Camera, Users } from 'lucide-react';
 import { AiAdvicePanel } from '../advice/AiAdvicePanel';
 import { AiDiscussionPanel } from '../advice/AiDiscussionPanel';
 import {
@@ -41,6 +48,7 @@ import {
   generateStoryboardFromScript,
   storyboardToText,
 } from '../../services/storyboardGenerateService';
+import { generateCharactersFromScript } from '../../services/characterGenerateService';
 import { listScripts, type FirestoreScript } from '../../lib/firebase/firestoreService';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -313,6 +321,47 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
     }
   };
 
+  // ── 登場人物（005 / FR-204） ──
+  const [generatingChars, setGeneratingChars] = useState(false);
+  const [charGenMessage, setCharGenMessage] = useState('');
+
+  const onGenerateCharacters = async (): Promise<void> => {
+    const source = sourceScripts?.find((s) => s.id === selectedSourceId);
+    if (!source) {
+      setCharGenMessage('「脚本からカット割り生成」で元の脚本を選択してください');
+      return;
+    }
+    const existing = content.characters ?? [];
+    if (
+      existing.length > 0 &&
+      !confirm('既存の登場人物リストを生成結果で置き換えます。よろしいですか？')
+    ) {
+      return;
+    }
+    setGeneratingChars(true);
+    setCharGenMessage('');
+    try {
+      const characters = await generateCharactersFromScript('gemini', {
+        characterText: source.characterText ?? '',
+        content: source.content ?? '',
+      });
+      setState((current) => ({
+        ...current,
+        storyboardContent: {
+          ...(current.storyboardContent ?? createEmptyStoryboardContent()),
+          characters,
+        },
+      }));
+      setCharGenMessage(
+        `「${source.title}」から ${characters.length} 名を生成しました（保存で確定）`,
+      );
+    } catch (error) {
+      setCharGenMessage(`生成に失敗: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setGeneratingChars(false);
+    }
+  };
+
   // ── 共通更新ヘルパー ──
   const setContent = (next: StoryboardContent): void => {
     setState((current) => ({ ...current, storyboardContent: next }));
@@ -340,6 +389,53 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
   const patchCut = (cutId: string, patch: Partial<StoryboardCut>): void => {
     if (!activeScene) return;
     setContent(updateCut(content, activeScene.id, cutId, patch));
+  };
+
+  // ── 登場人物ヘルパー ──
+  const characters = content.characters ?? [];
+  const patchCharacter = (
+    id: string,
+    patch: Partial<Pick<StoryboardCharacter, 'name' | 'description' | 'image'>>,
+  ): void => setContent(updateCharacter(content, id, patch));
+  const referencedCharacters = (cut: StoryboardCut): StoryboardCharacter[] =>
+    characters.filter((c) => cut.characterIds?.includes(c.id));
+
+  /** Toggleable chips to mark which characters appear in a cut (FR-205). */
+  const characterChips = (cut: StoryboardCut): ReactElement | null => {
+    if (characters.length === 0) return null;
+    return (
+      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>登場:</span>
+        {characters.map((ch) => {
+          const on = cut.characterIds?.includes(ch.id) ?? false;
+          return (
+            <button
+              key={ch.id}
+              type="button"
+              onClick={() =>
+                activeScene &&
+                setContent(toggleCutCharacter(content, activeScene.id, cut.id, ch.id))
+              }
+              aria-pressed={on}
+              title={on ? '参照から外す' : '参照に加える'}
+              style={{
+                fontSize: '0.625rem',
+                padding: '0.1rem 0.4rem',
+                borderRadius: '999px',
+                border: on
+                  ? '1px solid var(--color-primary, #2563eb)'
+                  : '1px solid var(--color-border)',
+                background: on ? 'var(--color-primary-light, #dbeafe)' : 'transparent',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+              }}
+            >
+              {ch.name || '(無名)'}
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   const cutRowControls = (cut: StoryboardCut, index: number): ReactElement => (
@@ -569,6 +665,97 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         </details>
       </section>
 
+      {/* ── 登場人物（005 / FR-206） ── */}
+      <section className="section-container" aria-label="登場人物">
+        <details>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              display: 'flex',
+              gap: '0.375rem',
+              alignItems: 'center',
+            }}
+          >
+            <Users size={15} /> 登場人物（{characters.length}名）
+          </summary>
+          <div style={{ marginTop: '0.5rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.5rem',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setContent(addCharacter(content))}
+                style={{
+                  display: 'flex',
+                  gap: '0.25rem',
+                  alignItems: 'center',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <Plus size={14} /> 登場人物を追加
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => void onGenerateCharacters()}
+                disabled={generatingChars || !selectedSourceId}
+                title={
+                  selectedSourceId
+                    ? '選択中の脚本から登場人物と作画プロンプトを生成'
+                    : '「脚本からカット割り生成」で脚本を選択してください'
+                }
+                style={{
+                  display: 'flex',
+                  gap: '0.25rem',
+                  alignItems: 'center',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <Wand2 size={14} /> {generatingChars ? '生成中...' : '脚本から生成'}
+              </button>
+              {charGenMessage ? (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {charGenMessage}
+                </span>
+              ) : null}
+            </div>
+            {characters.length === 0 ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                登場人物がいません。「登場人物を追加」または「脚本から生成」してください。画像を用意すると、カット生成時に参照できます。
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '0.625rem',
+                }}
+              >
+                {characters.map((ch, i) => (
+                  <CharacterPanel
+                    key={ch.id}
+                    character={ch}
+                    onPatch={(patch) => patchCharacter(ch.id, patch)}
+                    onRemove={() => setContent(removeCharacter(content, ch.id))}
+                    onMove={(dir) => setContent(moveCharacter(content, ch.id, dir))}
+                    disableUp={i === 0}
+                    disableDown={i === characters.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      </section>
+
       {/* ── 本体: シーン一覧（左レール）＋カット行（FR-118） ── */}
       <section className="section-container" aria-label="カット表">
         <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-start' }}>
@@ -670,6 +857,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                           cut={cut}
                           aspect={aspect}
                           onPatch={(patch) => patchCut(cut.id, patch)}
+                          referencedCharacters={referencedCharacters(cut)}
                         />
                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem' }}>
                           <textarea
@@ -691,6 +879,9 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                         <div style={{ marginTop: '0.375rem' }}>
                           <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
                         </div>
+                        {characters.length > 0 && (
+                          <div style={{ marginTop: '0.375rem' }}>{characterChips(cut)}</div>
+                        )}
                       </div>
                     ) : (
                       /* アニメ式: No.＋秒数 | 絵 | 指示 | セリフ の横並び行 */
@@ -725,6 +916,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                             cut={cut}
                             aspect={aspect}
                             onPatch={(patch) => patchCut(cut.id, patch)}
+                            referencedCharacters={referencedCharacters(cut)}
                           />
                         </div>
                         <div
@@ -745,6 +937,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                           />
                           {/* カメラ指示は内容欄の下（絵欄の操作ボタンと高さを揃える） */}
                           <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
+                          {characters.length > 0 && characterChips(cut)}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <textarea
