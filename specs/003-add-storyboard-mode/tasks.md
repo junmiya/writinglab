@@ -40,27 +40,32 @@
 
 ### 5a. アスペクト比とレイアウト再設計（FR-113/FR-118）
 
-- [ ] T140 `types/storyboard.ts`: `StoryboardSettings.frameAspect`（preset '16:9'|'2.35:1'|'custom' + w/h）追加、既存データは 16:9 フォールバック
-- [ ] T141 StoryboardEditor 再配置: カット行を **No.＋秒数（細列）→ 絵（frameAspect 準拠枠）→ 指示欄 → セリフ欄** に変更。シーン一覧=左レール、AI 評価/対話批評=下部折りたたみ、書式設定/バックアップ=ヘッダーメニュー（承認済みモックアップ準拠）
-- [ ] T142 書式設定にアスペクト選択（2 プリセット＋カスタム比率入力）。切替はデータ不変（表示・生成パラメータのみ）
-- [ ] T143 [P] テスト: frameAspect フォールバック・カスタム比率バリデーション
+- [x] T140 `types/storyboard.ts`: `StoryboardSettings.frameAspect`（preset '16:9'|'2.35:1'|'custom' + w/h）追加、既存データは 16:9 フォールバック
+- [x] T141 StoryboardEditor 再配置: カット行を **No.＋秒数（細列）→ 絵（frameAspect 準拠枠）→ 指示欄 → セリフ欄** に変更。シーン一覧=左レール、AI 評価/対話批評=下部折りたたみ、書式設定/バックアップ=ヘッダーメニュー（承認済みモックアップ準拠）
+- [x] T142 書式設定にアスペクト選択（2 プリセット＋カスタム比率入力）。切替はデータ不変（表示・生成パラメータのみ）
+- [x] T143 [P] テスト: frameAspect フォールバック・カスタム比率バリデーション
 
 ### 5b. カメラ指示ドロップダウン（FR-114）
 
-- [ ] T144 `types/storyboard.ts`: `cameraSizeStart/End`（ELS..ECU）・`cameraWork`（FIX/PAN/TILT/TU/TB/ZOOM/FOLLOW/手持ち/OTHER）を StoryboardCut に追加（任意・後方互換）
-- [ ] T145 指示欄 UI: サイズ開始▾ →（任意）終了▾ ＋ ワーク▾ ＋ 自由記述。表示は「WS→MS / T.U」形式。`storyboardToText` と AI プロンプトに構造化反映
-- [ ] T146 [P] テスト: 遷移表示（開始のみ/開始→終了）・後方互換（未設定カット）
+- [x] T144 `types/storyboard.ts`: `cameraSizeStart/End`（ELS..ECU）・`cameraWork`（FIX/PAN/TILT/TU/TB/ZOOM/FOLLOW/手持ち/OTHER）を StoryboardCut に追加（任意・後方互換）
+- [x] T145 指示欄 UI: サイズ開始▾ →（任意）終了▾ ＋ ワーク▾ ＋ 自由記述。表示は「WS→MS / T.U」形式。`storyboardToText` と AI プロンプトに構造化反映
+- [x] T146 [P] テスト: 遷移表示（開始のみ/開始→終了）・後方互換（未設定カット）
 
 ### 5c. 画像生成＋議論修正ループ（FR-115/116/117）
 
-- [ ] T147 `services/openaiImageService.ts`: GPT Image 生成/編集 API クライアント（**BYOK**: 設定画面でキー入力・ローカル保存、モデル ID は実装時に最新確認）。アスペクト→API サイズ自動選択
-- [ ] T148 プロンプト組成: 構図メモ＋カメラ指示＋アスペクト＋スタイル（既定: 絵コンテ風モノクロラフ）
-- [ ] T149 `CutImagePanel`: 生成ボタン（キー未設定時は無効＋案内）→ 絵枠に表示。議論スレッド（フィードバック→画像編集 API→新バージョン）、バージョン履歴サムネイル・採用/差し戻し/削除
-- [ ] T150 保存方針: `CutImage` は Firestore 非保存。JSON バックアップに base64 内包・復元対応（アプリ版はファイルパスに差し替え可能な抽象化）
-- [ ] T151 [P] テスト: プロンプト組成・失敗時非破壊（採用版維持）・バックアップ往復（画像含む）
+- [x] T147 `services/openaiImageService.ts`: GPT Image 生成/編集 API クライアント（**BYOK**: 設定画面でキー入力・ローカル保存、モデル ID は実装時に最新確認）。アスペクト→API サイズ自動選択
+- [x] T148 プロンプト組成: 構図メモ＋カメラ指示＋アスペクト＋スタイル（既定: 絵コンテ風モノクロラフ）
+- [x] T149 `CutImagePanel`: 生成ボタン（キー未設定時は無効＋案内）→ 絵枠に表示。議論スレッド（フィードバック→画像編集 API→新バージョン）、バージョン履歴サムネイル・採用/差し戻し/削除
+- [x] T150 保存方針: `CutImage` は Firestore 非保存。JSON バックアップに base64 内包・復元対応（アプリ版はファイルパスに差し替え可能な抽象化）
+- [x] T151 [P] テスト: プロンプト組成・失敗時非破壊（採用版維持）・バックアップ往復（画像含む）
 - [ ] T152 検証: 生成 30 秒以内（SC-107）・キーのローカル保存確認（SC-108）・手動 quickstart 更新
+
+### 5d. 画像の添付（FR-119・C案追補）
+
+- [x] T153 添付機能: `CutImageVersion.mime?` 追加、CutImagePanel に「添付」（ファイル選択 `image/*`）＋「貼り付け」（Clipboard API）ボタン（API キー不要で有効）。添付版は履歴に「添付: ファイル名」で追加され修正ループの起点になる。MIME を表示・編集 API・バックアップ往復で維持（ユニットテスト付き）
+- [x] T154 プロンプト提示: CutImagePanel に「プロンプト」ボタン（`buildImagePrompt` の表示・コピー）。定額プランで描く導線（コピー→ChatGPT→画像コピー→貼り付け）。カット行では絵欄の操作行と同じ位置
 
 ## Notes
 
 - 同一ファイル直列: `firestoreService.ts`（T102/T103）、`editorStore.ts`（T102/T110）、`EditorPage.tsx`（T113）
-- 画像添付・AI画像生成・docx/PDF・コンテスト対応はスコープ外（spec §4）
+- クラウド画像保存（Storage）・docx/PDF・コンテスト対応・MCP サーバーはスコープ外（spec §4）

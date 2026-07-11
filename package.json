@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "workspaces": [
     "frontend",
-    "functions"
+    "functions",
+    "mcp-server"
   ],
   "scripts": {
     "dev:frontend": "npm run --workspace @scenario-lab/frontend dev",

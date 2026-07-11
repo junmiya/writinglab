@@ -57,6 +57,7 @@ import {
   updateSynopsisSettings,
   updateCharacterText,
   updateCharacterSettings,
+  stripStoryboardImages,
 } from '../stores/editorStore';
 
 const structureSegments: StructureSegment[] = [
@@ -212,7 +213,9 @@ export function EditorPage(): ReactElement {
           : {}),
         ...(state.contentType === 'storyboard'
           ? {
-              ...(state.storyboardContent ? { storyboardContent: state.storyboardContent } : {}),
+              ...(state.storyboardContent
+                ? { storyboardContent: stripStoryboardImages(state.storyboardContent) }
+                : {}),
               ...(state.storyboardSettings ? { storyboardSettings: state.storyboardSettings } : {}),
               ...(state.storyboardDiscussion
                 ? { storyboardDiscussion: state.storyboardDiscussion }

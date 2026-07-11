@@ -1,0 +1,31 @@
+{
+  "name": "@scenario-lab/mcp-server",
+  "version": "0.1.0",
+  "description": "ScenarioLab MCP server — read a user's storyboard cuts so a flat-rate MCP host can draw frames (specs/004, Phase 1a)",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "scenariolab-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1",
+    "firebase-admin": "^12.7.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.0"
+  }
+}

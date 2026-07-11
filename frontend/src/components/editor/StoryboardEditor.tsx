@@ -1,5 +1,7 @@
-import { useState, type Dispatch, type ReactElement, type SetStateAction } from 'react';
+import { useRef, useState, type Dispatch, type ReactElement, type SetStateAction } from 'react';
 import { SceneList } from './SceneList';
+import { CutImagePanel } from './CutImagePanel';
+import { CharacterPanel } from './CharacterPanel';
 import {
   type EditorState,
   addScene,
@@ -10,6 +12,11 @@ import {
   updateCut,
   removeCut,
   moveCut,
+  addCharacter,
+  updateCharacter,
+  removeCharacter,
+  moveCharacter,
+  toggleCutCharacter,
   storyboardCutCount,
   storyboardTotalSec,
   formatDuration,
@@ -17,11 +24,19 @@ import {
 import {
   createEmptyStoryboardContent,
   DEFAULT_STORYBOARD_SETTINGS,
+  FRAME_ASPECT_PRESETS,
+  resolveFrameAspect,
+  CAMERA_SIZE_OPTIONS,
+  CAMERA_WORK_OPTIONS,
+  formatCamera,
+  type CameraSize,
+  type CameraWork,
   type StoryboardContent,
   type StoryboardCut,
+  type StoryboardCharacter,
   type StoryboardSettings,
 } from '../../types/storyboard';
-import { ChevronUp, ChevronDown, Plus, Trash2, Wand2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Plus, Trash2, Wand2, Camera, Users } from 'lucide-react';
 import { AiAdvicePanel } from '../advice/AiAdvicePanel';
 import { AiDiscussionPanel } from '../advice/AiDiscussionPanel';
 import {
@@ -33,9 +48,9 @@ import {
   generateStoryboardFromScript,
   storyboardToText,
 } from '../../services/storyboardGenerateService';
+import { generateCharactersFromScript } from '../../services/characterGenerateService';
 import { listScripts, type FirestoreScript } from '../../lib/firebase/firestoreService';
 import { useAuth } from '../../contexts/AuthContext';
-import { useRef } from 'react';
 import {
   serializeStoryboardBackupJson,
   parseStoryboardBackupJson,
@@ -43,6 +58,7 @@ import {
   downloadTextFile,
   backupFilename,
 } from '../../services/storyboardBackupService';
+import { getOpenAiKey, setOpenAiKey } from '../../services/openaiImageService';
 
 interface StoryboardEditorProps {
   state: EditorState;
@@ -57,28 +73,150 @@ const cellInput: React.CSSProperties = {
   borderRadius: 'var(--radius-sm)',
 };
 
-const cellArea: React.CSSProperties = { ...cellInput, resize: 'vertical', minHeight: '3rem' };
+const cellArea: React.CSSProperties = { ...cellInput, resize: 'vertical', minHeight: '3.5rem' };
 
-const th: React.CSSProperties = {
+const colLabel: React.CSSProperties = {
   fontSize: '0.6875rem',
   color: 'var(--text-secondary)',
-  textAlign: 'left',
-  padding: '0.25rem 0.375rem',
   fontWeight: 600,
 };
 
+const smallSelect: React.CSSProperties = { fontSize: '0.6875rem', padding: '0.15rem 0.25rem' };
+
+/** Fixed-size square icon button so the No. column controls never overflow. */
+const ctrlBtn: React.CSSProperties = {
+  width: '1.5rem',
+  height: '1.5rem',
+  minWidth: 0,
+  padding: 0,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+/** Width of the No.＋秒＋操作 column (must fit 3 square controls in one row). */
+const NO_COL_WIDTH = '5rem';
+
 /**
- * Storyboard editing experience (specs/003 US1/US2): scene list + cut table for the
- * active scene. Paper presets: anime = classic 5-column table; film = frame-first
- * cards. Isolated from screenplay/novel paths (no regression).
+ * Camera direction (FR-114) as a compact one-line summary that expands to the
+ * size-start → size-end / work dropdowns on click, keeping cut rows short.
+ */
+function CameraField({
+  cut,
+  onPatch,
+}: {
+  cut: StoryboardCut;
+  onPatch: (patch: Partial<StoryboardCut>) => void;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const summary = formatCamera(cut);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="カメラ指示を編集"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+          fontSize: '0.6875rem',
+          padding: '0.15rem 0.4rem',
+          border: '1px dashed var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+          color: summary ? 'var(--text-primary)' : 'var(--text-secondary)',
+          background: 'transparent',
+          cursor: 'pointer',
+        }}
+      >
+        <Camera size={12} /> {summary || 'カメラ指示'}
+      </button>
+      {open && (
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.25rem',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginTop: '0.25rem',
+          }}
+        >
+          <select
+            value={cut.cameraSizeStart ?? ''}
+            onChange={(e) =>
+              onPatch({
+                cameraSizeStart: (e.currentTarget.value || undefined) as CameraSize | undefined,
+              })
+            }
+            title="サイズ（開始）"
+            style={smallSelect}
+          >
+            <option value="">サイズ—</option>
+            {CAMERA_SIZE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>→</span>
+          <select
+            value={cut.cameraSizeEnd ?? ''}
+            onChange={(e) =>
+              onPatch({
+                cameraSizeEnd: (e.currentTarget.value || undefined) as CameraSize | undefined,
+              })
+            }
+            title="サイズ（終了・任意）"
+            style={smallSelect}
+          >
+            <option value="">終了—</option>
+            {CAMERA_SIZE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={cut.cameraWork ?? ''}
+            onChange={(e) =>
+              onPatch({
+                cameraWork: (e.currentTarget.value || undefined) as CameraWork | undefined,
+              })
+            }
+            title="カメラワーク"
+            style={smallSelect}
+          >
+            <option value="">ワーク—</option>
+            {CAMERA_WORK_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Storyboard editor (specs/003 Session 4, FR-118): cut rows laid out as
+ * No.+sec | 絵 (aspect frame) | 指示 (camera dropdowns + action) | セリフ.
+ * Scene list on the left rail; AI panels and low-frequency features collapsed.
+ * Paper presets: anime = horizontal rows; film = frame-first stacked cards.
  */
 export function StoryboardEditor({ state, setState }: StoryboardEditorProps): ReactElement {
   const { user } = useAuth();
   const content = state.storyboardContent ?? createEmptyStoryboardContent();
   const settings = state.storyboardSettings ?? DEFAULT_STORYBOARD_SETTINGS;
+  const aspect = resolveFrameAspect(settings.frameAspect);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
 
-  // ── バックアップ（FR-111） ──
+  // ── OpenAI キー（BYOK, FR-115）──
+  const [keyDraft, setKeyDraft] = useState(getOpenAiKey());
+  const [keySaved, setKeySaved] = useState(false);
+
+  // ── バックアップ（FR-111/117） ──
   const [backupMessage, setBackupMessage] = useState('');
   const importRef = useRef<HTMLInputElement | null>(null);
 
@@ -98,7 +236,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
       serializeStoryboardBackupJson(backupInput()),
       'application/json',
     );
-    setBackupMessage('JSON バックアップを書き出しました');
+    setBackupMessage('JSON バックアップを書き出しました（画像も内包）');
   };
 
   const onExportMarkdown = (): void => {
@@ -177,13 +315,54 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         `「${source.title}」から ${generated.scenes.length} シーンを生成しました（保存で確定）`,
       );
     } catch (error) {
-      // Parse failures never touch existing data (SC-103).
       setGenerateMessage(`生成に失敗: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setGenerating(false);
     }
   };
 
+  // ── 登場人物（005 / FR-204） ──
+  const [generatingChars, setGeneratingChars] = useState(false);
+  const [charGenMessage, setCharGenMessage] = useState('');
+
+  const onGenerateCharacters = async (): Promise<void> => {
+    const source = sourceScripts?.find((s) => s.id === selectedSourceId);
+    if (!source) {
+      setCharGenMessage('「脚本からカット割り生成」で元の脚本を選択してください');
+      return;
+    }
+    const existing = content.characters ?? [];
+    if (
+      existing.length > 0 &&
+      !confirm('既存の登場人物リストを生成結果で置き換えます。よろしいですか？')
+    ) {
+      return;
+    }
+    setGeneratingChars(true);
+    setCharGenMessage('');
+    try {
+      const characters = await generateCharactersFromScript('gemini', {
+        characterText: source.characterText ?? '',
+        content: source.content ?? '',
+      });
+      setState((current) => ({
+        ...current,
+        storyboardContent: {
+          ...(current.storyboardContent ?? createEmptyStoryboardContent()),
+          characters,
+        },
+      }));
+      setCharGenMessage(
+        `「${source.title}」から ${characters.length} 名を生成しました（保存で確定）`,
+      );
+    } catch (error) {
+      setCharGenMessage(`生成に失敗: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setGeneratingChars(false);
+    }
+  };
+
+  // ── 共通更新ヘルパー ──
   const setContent = (next: StoryboardContent): void => {
     setState((current) => ({ ...current, storyboardContent: next }));
   };
@@ -212,14 +391,61 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
     setContent(updateCut(content, activeScene.id, cutId, patch));
   };
 
+  // ── 登場人物ヘルパー ──
+  const characters = content.characters ?? [];
+  const patchCharacter = (
+    id: string,
+    patch: Partial<Pick<StoryboardCharacter, 'name' | 'description' | 'image'>>,
+  ): void => setContent(updateCharacter(content, id, patch));
+  const referencedCharacters = (cut: StoryboardCut): StoryboardCharacter[] =>
+    characters.filter((c) => cut.characterIds?.includes(c.id));
+
+  /** Toggleable chips to mark which characters appear in a cut (FR-205). */
+  const characterChips = (cut: StoryboardCut): ReactElement | null => {
+    if (characters.length === 0) return null;
+    return (
+      <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: '0.625rem', color: 'var(--text-secondary)' }}>登場:</span>
+        {characters.map((ch) => {
+          const on = cut.characterIds?.includes(ch.id) ?? false;
+          return (
+            <button
+              key={ch.id}
+              type="button"
+              onClick={() =>
+                activeScene &&
+                setContent(toggleCutCharacter(content, activeScene.id, cut.id, ch.id))
+              }
+              aria-pressed={on}
+              title={on ? '参照から外す' : '参照に加える'}
+              style={{
+                fontSize: '0.625rem',
+                padding: '0.1rem 0.4rem',
+                borderRadius: '999px',
+                border: on
+                  ? '1px solid var(--color-primary, #2563eb)'
+                  : '1px solid var(--color-border)',
+                background: on ? 'var(--color-primary-light, #dbeafe)' : 'transparent',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+              }}
+            >
+              {ch.name || '(無名)'}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const cutRowControls = (cut: StoryboardCut, index: number): ReactElement => (
-    <div style={{ display: 'flex', gap: '0.25rem' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem' }}>
       <button
         type="button"
         onClick={() => activeScene && setContent(moveCut(content, activeScene.id, cut.id, -1))}
         disabled={index === 0}
         title="上へ"
-        style={{ padding: '0.2rem', opacity: index === 0 ? 0.3 : 1 }}
+        style={{ ...ctrlBtn, opacity: index === 0 ? 0.3 : 1 }}
       >
         <ChevronUp size={13} />
       </button>
@@ -228,7 +454,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         onClick={() => activeScene && setContent(moveCut(content, activeScene.id, cut.id, 1))}
         disabled={index === activeCuts.length - 1}
         title="下へ"
-        style={{ padding: '0.2rem', opacity: index === activeCuts.length - 1 ? 0.3 : 1 }}
+        style={{ ...ctrlBtn, opacity: index === activeCuts.length - 1 ? 0.3 : 1 }}
       >
         <ChevronDown size={13} />
       </button>
@@ -237,7 +463,7 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         className="btn-danger"
         onClick={() => activeScene && setContent(removeCut(content, activeScene.id, cut.id))}
         title="カットを削除"
-        style={{ padding: '0.2rem', color: 'var(--color-danger, #dc2626)' }}
+        style={{ ...ctrlBtn, color: 'var(--color-danger, #dc2626)' }}
       >
         <Trash2 size={13} />
       </button>
@@ -255,17 +481,23 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
         const v = e.currentTarget.value;
         patchCut(cut.id, { timeSec: v === '' ? null : Number(v) });
       }}
-      style={{ ...cellInput, width: '4.5rem' }}
+      style={{ ...cellInput, width: '100%', fontSize: '0.6875rem', padding: '0.15rem 0.25rem' }}
     />
   );
 
+  const isFilm = settings.paperFormat === 'film';
+
   return (
     <>
-      {/* ── 書式設定（用紙プリセット, FR-104） ── */}
+      {/* ── 書式設定（用紙・アスペクト・キー, FR-104/113/115） ── */}
       <section className="section-container" aria-label="書式設定">
-        <h3>書式設定</h3>
         <div
-          style={{ display: 'flex', gap: 'var(--space-lg)', alignItems: 'end', flexWrap: 'wrap' }}
+          style={{
+            display: 'flex',
+            gap: 'var(--space-lg)',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
         >
           <label style={{ fontSize: '0.8125rem' }}>
             用紙{' '}
@@ -275,297 +507,539 @@ export function StoryboardEditor({ state, setState }: StoryboardEditorProps): Re
                 setSettings({ paperFormat: e.currentTarget.value as 'anime' | 'film' })
               }
             >
-              <option value="anime">アニメ式（5欄）</option>
+              <option value="anime">アニメ式（横並び）</option>
               <option value="film">映画式（フレーム主体）</option>
             </select>
           </label>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            切替は表示のみ（データは保持されます）
-          </span>
+          <label style={{ fontSize: '0.8125rem' }}>
+            アスペクト{' '}
+            <select
+              value={aspect.preset}
+              onChange={(e) => {
+                const v = e.currentTarget.value as '16:9' | '2.35:1' | 'custom';
+                setSettings({
+                  frameAspect:
+                    v === 'custom'
+                      ? { preset: 'custom', w: aspect.w, h: aspect.h }
+                      : FRAME_ASPECT_PRESETS[v],
+                });
+              }}
+            >
+              <option value="16:9">16:9（TV・アニメ）</option>
+              <option value="2.35:1">2.35:1（シネスコ）</option>
+              <option value="custom">カスタム</option>
+            </select>
+          </label>
+          {aspect.preset === 'custom' && (
+            <span
+              style={{
+                fontSize: '0.8125rem',
+                display: 'inline-flex',
+                gap: '0.25rem',
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="number"
+                min={0.1}
+                step={0.01}
+                value={aspect.w}
+                onChange={(e) =>
+                  setSettings({
+                    frameAspect: {
+                      preset: 'custom',
+                      w: Number(e.currentTarget.value) || 16,
+                      h: aspect.h,
+                    },
+                  })
+                }
+                style={{ ...cellInput, width: '4rem' }}
+              />
+              :
+              <input
+                type="number"
+                min={0.1}
+                step={0.01}
+                value={aspect.h}
+                onChange={(e) =>
+                  setSettings({
+                    frameAspect: {
+                      preset: 'custom',
+                      w: aspect.w,
+                      h: Number(e.currentTarget.value) || 9,
+                    },
+                  })
+                }
+                style={{ ...cellInput, width: '4rem' }}
+              />
+            </span>
+          )}
+          <details>
+            <summary
+              style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              OpenAI キー（画像生成）
+            </summary>
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.375rem',
+                marginTop: '0.375rem',
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="password"
+                value={keyDraft}
+                onChange={(e) => {
+                  setKeyDraft(e.currentTarget.value);
+                  setKeySaved(false);
+                }}
+                placeholder="sk-..."
+                style={{ ...cellInput, width: '16rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenAiKey(keyDraft.trim());
+                  setKeySaved(true);
+                }}
+                style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem' }}
+              >
+                保存
+              </button>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)' }}>
+                {keySaved ? '保存しました（この端末のみ）' : '端末内にのみ保存されます'}
+              </span>
+            </div>
+          </details>
         </div>
       </section>
 
-      {/* ── 脚本からカット割り生成（FR-110） ── */}
+      {/* ── 脚本からカット割り生成（折りたたみ, FR-110） ── */}
       <section className="section-container" aria-label="脚本からカット割り生成">
-        <h3>脚本からカット割り生成</h3>
-        <div
-          style={{
-            display: 'flex',
-            gap: 'var(--space-sm)',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <select
-            value={selectedSourceId}
-            onFocus={() => void loadSourceScripts()}
-            onChange={(e) => setSelectedSourceId(e.currentTarget.value)}
-            style={{ fontSize: '0.8125rem', padding: '0.3rem 0.5rem', minWidth: '16rem' }}
+        <details>
+          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+            脚本からカット割り生成
+          </summary>
+          <div
+            style={{
+              display: 'flex',
+              gap: 'var(--space-sm)',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              marginTop: '0.5rem',
+            }}
           >
-            <option value="">
-              {sourceScripts === null
-                ? '脚本を選択（クリックで読み込み）...'
-                : sourceScripts.length === 0
-                  ? '脚本がありません'
-                  : '脚本を選択...'}
-            </option>
-            {(sourceScripts ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title || '(無題)'}
+            <select
+              value={selectedSourceId}
+              onFocus={() => void loadSourceScripts()}
+              onChange={(e) => setSelectedSourceId(e.currentTarget.value)}
+              style={{ fontSize: '0.8125rem', padding: '0.3rem 0.5rem', minWidth: '16rem' }}
+            >
+              <option value="">
+                {sourceScripts === null
+                  ? '脚本を選択（クリックで読み込み）...'
+                  : sourceScripts.length === 0
+                    ? '脚本がありません'
+                    : '脚本を選択...'}
               </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => void onGenerate()}
-            disabled={generating || !selectedSourceId}
-            style={{ display: 'flex', gap: '0.25rem', fontSize: '0.8125rem' }}
-          >
-            <Wand2 size={14} />
-            {generating ? '生成中...' : 'AI でカット割り生成'}
-          </button>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            柱・ト書き・セリフからシーン／カットを自動作成します
-          </span>
-        </div>
-        {generateMessage ? <p className="status-text">{generateMessage}</p> : null}
-      </section>
-
-      {/* ── シーン一覧 ── */}
-      <SceneList
-        content={content}
-        activeSceneId={activeScene?.id ?? null}
-        onSelectScene={setActiveSceneId}
-        onAddScene={handleAddScene}
-        onRemoveScene={(id) => {
-          setContent(removeScene(content, id));
-          if (activeSceneId === id) setActiveSceneId(null);
-        }}
-        onMoveScene={(id, dir) => setContent(moveScene(content, id, dir))}
-      />
-
-      {/* ── カット表 ── */}
-      <section className="section-container" aria-label="カット表">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3>カット表{activeScene ? ` — ${activeScene.title || 'シーン'}` : ''}</h3>
-          {activeScene && (
+              {(sourceScripts ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title || '(無題)'}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
-              onClick={() => setContent(addCut(content, activeScene.id))}
-              style={{ display: 'flex', gap: '0.25rem' }}
+              className="btn-primary"
+              onClick={() => void onGenerate()}
+              disabled={generating || !selectedSourceId}
+              style={{ display: 'flex', gap: '0.25rem', fontSize: '0.8125rem' }}
             >
-              <Plus size={14} /> カットを追加
+              <Wand2 size={14} />
+              {generating ? '生成中...' : 'AI でカット割り生成'}
             </button>
-          )}
-        </div>
-
-        {activeScene && (
-          <label style={{ display: 'block', fontSize: '0.8125rem', margin: '0.5rem 0' }}>
-            シーン名{' '}
-            <input
-              value={activeScene.title}
-              onChange={(e) =>
-                setContent(updateScene(content, activeScene.id, { title: e.currentTarget.value }))
-              }
-              placeholder="例: 学校・屋上（夕）"
-              style={{ ...cellInput, maxWidth: '24rem', display: 'inline-block' }}
-            />
-          </label>
-        )}
-
-        <AiAdvicePanel
-          label="カット表"
-          text={storyboardToText(content)}
-          experts={STORYBOARD_ADVICE_EXPERTS}
-        >
-          {!activeScene ? (
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              シーンを追加（または選択）するとカット表を編集できます。
-            </p>
-          ) : activeCuts.length === 0 ? (
-            <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              カットがありません。「カットを追加」してください。
-            </p>
-          ) : settings.paperFormat === 'anime' ? (
-            /* アニメ式: 5欄テーブル */
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ ...th, width: '4.5rem' }}>カット</th>
-                  <th style={th}>画面（構図・カメラ）</th>
-                  <th style={th}>内容（アクション）</th>
-                  <th style={th}>セリフ／音</th>
-                  <th style={{ ...th, width: '5rem' }}>秒数</th>
-                  <th style={{ ...th, width: '6rem' }} />
-                </tr>
-              </thead>
-              <tbody>
-                {activeCuts.map((cut, index) => (
-                  <tr key={cut.id} style={{ verticalAlign: 'top' }}>
-                    <td>
-                      <input
-                        value={cut.cutNumber}
-                        onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
-                        style={{ ...cellInput, width: '4rem' }}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        value={cut.picture}
-                        onChange={(e) => patchCut(cut.id, { picture: e.currentTarget.value })}
-                        placeholder="例: 屋上フェンス越しロング、PAN右"
-                        rows={2}
-                        style={cellArea}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        value={cut.action}
-                        onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
-                        placeholder="芝居・動き・演出指示"
-                        rows={2}
-                        style={cellArea}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        value={cut.dialogue}
-                        onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
-                        placeholder="セリフ／SE・音楽"
-                        rows={2}
-                        style={cellArea}
-                      />
-                    </td>
-                    <td>{timeInput(cut)}</td>
-                    <td>{cutRowControls(cut, index)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            /* 映画式: フレーム主体カード */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {activeCuts.map((cut, index) => (
-                <div
-                  key={cut.id}
-                  style={{
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '0.75rem',
-                    backgroundColor: 'var(--color-surface)',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    <input
-                      value={cut.cutNumber}
-                      onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
-                      style={{ ...cellInput, width: '5rem', fontWeight: 700 }}
-                    />
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      {timeInput(cut)}
-                      {cutRowControls(cut, index)}
-                    </div>
-                  </div>
-                  {/* フレーム（画面描写）を大きく */}
-                  <textarea
-                    value={cut.picture}
-                    onChange={(e) => patchCut(cut.id, { picture: e.currentTarget.value })}
-                    placeholder="フレーム: 構図・カメラワークを大きく記述（16:9 を想定）"
-                    rows={4}
-                    style={{
-                      ...cellArea,
-                      minHeight: '6rem',
-                      backgroundColor: 'var(--color-bg-secondary, #f8fafc)',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                    <textarea
-                      value={cut.action}
-                      onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
-                      placeholder="内容（アクション）"
-                      rows={2}
-                      style={{ ...cellArea, flex: 1 }}
-                    />
-                    <textarea
-                      value={cut.dialogue}
-                      onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
-                      placeholder="セリフ／音"
-                      rows={2}
-                      style={{ ...cellArea, flex: 1 }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </AiAdvicePanel>
-
-        {/* 合計（FR-105） */}
-        <p className="status-text" style={{ marginTop: 'var(--space-sm)' }}>
-          合計: {storyboardCutCount(content)}カット ／ 合計尺:{' '}
-          {formatDuration(storyboardTotalSec(content))}
-        </p>
+          </div>
+          {generateMessage ? <p className="status-text">{generateMessage}</p> : null}
+        </details>
       </section>
 
-      {/* ── AI 対話批評（監督 vs 編集技師, FR-108） ── */}
-      <section className="section-container" aria-label="AI対話批評">
-        <h3>AI対話批評</h3>
-        <AiDiscussionPanel
-          roleA={STORYBOARD_DISCUSSION_A}
-          roleB={STORYBOARD_DISCUSSION_B}
-          synopsis={state.synopsis}
-          content={storyboardToText(content)}
-          messages={state.storyboardDiscussion ?? []}
-          onMessagesChange={(msgs) =>
-            setState((current) => ({ ...current, storyboardDiscussion: msgs }))
-          }
-        />
-      </section>
-
-      {/* ── バックアップ（JSON 完全復元 / Markdown 可読, FR-111） ── */}
-      <section className="section-container" aria-label="バックアップ">
-        <h3>バックアップ</h3>
-        <div
-          style={{
-            display: 'flex',
-            gap: 'var(--space-sm)',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-        >
-          <button type="button" onClick={onExportJson}>
-            JSON バックアップ
-          </button>
-          <button type="button" onClick={() => importRef.current?.click()}>
-            JSON から復元
-          </button>
-          <button type="button" onClick={onExportMarkdown}>
-            Markdown 書き出し
-          </button>
-          <input
-            ref={importRef}
-            type="file"
-            accept=".json,application/json"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.currentTarget.files?.[0];
-              if (file) void onImportJson(file);
-              e.currentTarget.value = '';
+      {/* ── 登場人物（005 / FR-206） ── */}
+      <section className="section-container" aria-label="登場人物">
+        <details>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              display: 'flex',
+              gap: '0.375rem',
+              alignItems: 'center',
             }}
-          />
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            JSON は完全復元用、Markdown は閲覧用
-          </span>
+          >
+            <Users size={15} /> 登場人物（{characters.length}名）
+          </summary>
+          <div style={{ marginTop: '0.5rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.5rem',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setContent(addCharacter(content))}
+                style={{
+                  display: 'flex',
+                  gap: '0.25rem',
+                  alignItems: 'center',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <Plus size={14} /> 登場人物を追加
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => void onGenerateCharacters()}
+                disabled={generatingChars || !selectedSourceId}
+                title={
+                  selectedSourceId
+                    ? '選択中の脚本から登場人物と作画プロンプトを生成'
+                    : '「脚本からカット割り生成」で脚本を選択してください'
+                }
+                style={{
+                  display: 'flex',
+                  gap: '0.25rem',
+                  alignItems: 'center',
+                  fontSize: '0.8125rem',
+                }}
+              >
+                <Wand2 size={14} /> {generatingChars ? '生成中...' : '脚本から生成'}
+              </button>
+              {charGenMessage ? (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {charGenMessage}
+                </span>
+              ) : null}
+            </div>
+            {characters.length === 0 ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                登場人物がいません。「登場人物を追加」または「脚本から生成」してください。画像を用意すると、カット生成時に参照できます。
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                  gap: '0.625rem',
+                }}
+              >
+                {characters.map((ch, i) => (
+                  <CharacterPanel
+                    key={ch.id}
+                    character={ch}
+                    onPatch={(patch) => patchCharacter(ch.id, patch)}
+                    onRemove={() => setContent(removeCharacter(content, ch.id))}
+                    onMove={(dir) => setContent(moveCharacter(content, ch.id, dir))}
+                    disableUp={i === 0}
+                    disableDown={i === characters.length - 1}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
+      </section>
+
+      {/* ── 本体: シーン一覧（左レール）＋カット行（FR-118） ── */}
+      <section className="section-container" aria-label="カット表">
+        <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-start' }}>
+          <div style={{ width: '280px', flexShrink: 0 }}>
+            <SceneList
+              content={content}
+              activeSceneId={activeScene?.id ?? null}
+              onSelectScene={setActiveSceneId}
+              onAddScene={handleAddScene}
+              onRemoveScene={(id) => {
+                setContent(removeScene(content, id));
+                if (activeSceneId === id) setActiveSceneId(null);
+              }}
+              onMoveScene={(id, dir) => setContent(moveScene(content, id, dir))}
+            />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {activeScene && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.5rem',
+                  gap: '0.5rem',
+                }}
+              >
+                <input
+                  value={activeScene.title}
+                  onChange={(e) =>
+                    setContent(
+                      updateScene(content, activeScene.id, { title: e.currentTarget.value }),
+                    )
+                  }
+                  placeholder="シーン名（例: 学校・屋上（夕））"
+                  style={{ ...cellInput, maxWidth: '22rem' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setContent(addCut(content, activeScene.id))}
+                  style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}
+                >
+                  <Plus size={14} /> カットを追加
+                </button>
+              </div>
+            )}
+
+            {!activeScene ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                シーンを追加するとカット表を編集できます。
+              </p>
+            ) : activeCuts.length === 0 ? (
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                カットがありません。「カットを追加」してください。
+              </p>
+            ) : (
+              <>
+                {!isFilm && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <div style={{ width: NO_COL_WIDTH, ...colLabel }}>No.</div>
+                    <div style={{ width: '36%', ...colLabel }}>絵（画面）</div>
+                    <div style={{ flex: 1, ...colLabel }}>指示（カメラ・内容）</div>
+                    <div style={{ flex: 1, ...colLabel }}>セリフ・音</div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                  {activeCuts.map((cut, index) =>
+                    isFilm ? (
+                      /* 映画式: フレーム主体スタック */
+                      <div
+                        key={cut.id}
+                        style={{
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '0.625rem',
+                          backgroundColor: 'var(--color-surface)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.375rem',
+                          }}
+                        >
+                          <input
+                            value={cut.cutNumber}
+                            onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
+                            style={{ ...cellInput, width: '4.5rem', fontWeight: 700 }}
+                          />
+                          <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center' }}>
+                            {timeInput(cut)}
+                            {cutRowControls(cut, index)}
+                          </div>
+                        </div>
+                        <CutImagePanel
+                          cut={cut}
+                          aspect={aspect}
+                          onPatch={(patch) => patchCut(cut.id, patch)}
+                          referencedCharacters={referencedCharacters(cut)}
+                        />
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.375rem' }}>
+                          <textarea
+                            value={cut.action}
+                            onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
+                            placeholder="内容（アクション・演出）"
+                            rows={2}
+                            style={{ ...cellArea, flex: 1 }}
+                          />
+                          <textarea
+                            value={cut.dialogue}
+                            onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
+                            placeholder="セリフ／音・SE"
+                            rows={2}
+                            style={{ ...cellArea, flex: 1 }}
+                          />
+                        </div>
+                        {/* カメラ指示は内容欄の下 */}
+                        <div style={{ marginTop: '0.375rem' }}>
+                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
+                        </div>
+                        {characters.length > 0 && (
+                          <div style={{ marginTop: '0.375rem' }}>{characterChips(cut)}</div>
+                        )}
+                      </div>
+                    ) : (
+                      /* アニメ式: No.＋秒数 | 絵 | 指示 | セリフ の横並び行 */
+                      <div
+                        key={cut.id}
+                        style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}
+                      >
+                        <div
+                          style={{
+                            width: NO_COL_WIDTH,
+                            flexShrink: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <input
+                            value={cut.cutNumber}
+                            onChange={(e) => patchCut(cut.id, { cutNumber: e.currentTarget.value })}
+                            style={{
+                              ...cellInput,
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              padding: '0.15rem 0.25rem',
+                            }}
+                          />
+                          {timeInput(cut)}
+                          {cutRowControls(cut, index)}
+                        </div>
+                        <div style={{ width: '36%', flexShrink: 0 }}>
+                          <CutImagePanel
+                            cut={cut}
+                            aspect={aspect}
+                            onPatch={(patch) => patchCut(cut.id, patch)}
+                            referencedCharacters={referencedCharacters(cut)}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <textarea
+                            value={cut.action}
+                            onChange={(e) => patchCut(cut.id, { action: e.currentTarget.value })}
+                            placeholder="内容（アクション・演出）"
+                            rows={3}
+                            style={{ ...cellArea, flex: 1 }}
+                          />
+                          {/* カメラ指示は内容欄の下（絵欄の操作ボタンと高さを揃える） */}
+                          <CameraField cut={cut} onPatch={(p) => patchCut(cut.id, p)} />
+                          {characters.length > 0 && characterChips(cut)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <textarea
+                            value={cut.dialogue}
+                            onChange={(e) => patchCut(cut.id, { dialogue: e.currentTarget.value })}
+                            placeholder="セリフ／音・SE"
+                            rows={5}
+                            style={{ ...cellArea, height: '100%' }}
+                          />
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </>
+            )}
+
+            <p className="status-text" style={{ marginTop: 'var(--space-sm)' }}>
+              合計: {storyboardCutCount(content)}カット ／ 合計尺:{' '}
+              {formatDuration(storyboardTotalSec(content))}
+            </p>
+          </div>
         </div>
-        {backupMessage ? <p className="status-text">{backupMessage}</p> : null}
+      </section>
+
+      {/* ── AI（下部折りたたみ, FR-118） ── */}
+      <section className="section-container" aria-label="AI評価">
+        <details>
+          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+            AI評価（演出家・撮影・編集）
+          </summary>
+          <div style={{ marginTop: '0.5rem' }}>
+            <AiAdvicePanel
+              label="カット表"
+              text={storyboardToText(content)}
+              experts={STORYBOARD_ADVICE_EXPERTS}
+            />
+          </div>
+        </details>
+      </section>
+
+      <section className="section-container" aria-label="AI対話批評">
+        <details>
+          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+            AI対話批評（監督 vs 編集技師）
+          </summary>
+          <div style={{ marginTop: '0.5rem' }}>
+            <AiDiscussionPanel
+              roleA={STORYBOARD_DISCUSSION_A}
+              roleB={STORYBOARD_DISCUSSION_B}
+              synopsis={state.synopsis}
+              content={storyboardToText(content)}
+              messages={state.storyboardDiscussion ?? []}
+              onMessagesChange={(msgs) =>
+                setState((current) => ({ ...current, storyboardDiscussion: msgs }))
+              }
+            />
+          </div>
+        </details>
+      </section>
+
+      {/* ── バックアップ（折りたたみ, FR-111/117） ── */}
+      <section className="section-container" aria-label="バックアップ">
+        <details>
+          <summary style={{ cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600 }}>
+            バックアップ（JSON 完全復元 / Markdown）
+          </summary>
+          <div
+            style={{
+              display: 'flex',
+              gap: 'var(--space-sm)',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              marginTop: '0.5rem',
+            }}
+          >
+            <button type="button" onClick={onExportJson}>
+              JSON バックアップ
+            </button>
+            <button type="button" onClick={() => importRef.current?.click()}>
+              JSON から復元
+            </button>
+            <button type="button" onClick={onExportMarkdown}>
+              Markdown 書き出し
+            </button>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.currentTarget.files?.[0];
+                if (file) void onImportJson(file);
+                e.currentTarget.value = '';
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              画像は JSON バックアップにのみ保存されます（クラウド保存は後続）
+            </span>
+          </div>
+          {backupMessage ? <p className="status-text">{backupMessage}</p> : null}
+        </details>
       </section>
     </>
   );
